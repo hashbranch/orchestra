@@ -1,0 +1,2 @@
+"""Local Symphony bootstrap CLI."""
+

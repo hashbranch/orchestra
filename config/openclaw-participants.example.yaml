@@ -1,0 +1,6 @@
+openclaw_participants:
+  vector:
+    kind: ssh
+    host: vector@vector-tailnet-hostname
+    command: ~/.openclaw/bin/symphony-ask-vector
+    timeout_ms: 240000

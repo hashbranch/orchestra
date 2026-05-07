@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+set -eu
+
+printf '%s\n' '{"summary":"fake Vector review","blocking":false,"risks":[],"recommendations":["Harness smoke path is wired."],"instructionsForCodex":["Keep Vector advisory-only in V1."],"needsHuman":false}'

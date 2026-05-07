@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "requestId": "test-001",
+  "mode": "plan_review",
+  "issue": {
+    "id": "test-linear-id",
+    "identifier": "TEST-001",
+    "title": "Add account routing for external tools",
+    "description": "Implement explicit account alias selection for external CRM/email integrations.",
+    "url": "https://linear.app/example/issue/TEST-001",
+    "labels": ["backend", "integrations"],
+    "state": "In Progress"
+  },
+  "repo": {
+    "name": "example/repo",
+    "root": "/tmp/symphony/workspaces/TEST-001",
+    "branch": "test-001-account-routing"
+  },
+  "plan": "Add an accountAlias field to integration calls and default to explicit aliases in workflow config.",
+  "diff": null,
+  "question": "Review this plan for context/design risks before Codex implements it.",
+  "constraints": [
+    "Codex owns edits in this workspace",
+    "Vector should not modify files",
+    "Return JSON only"
+  ]
+}

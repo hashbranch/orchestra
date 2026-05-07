@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orchestra"
+version = "0.1.0"
+description = "Bootstrap and run local OpenAI Symphony instances."
+requires-python = ">=3.10"
+
+[project.scripts]
+orchestra = "orchestra_cli.main:main"
+symphony-ask-vector = "symphony_vector.wrapper:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+include = ["orchestra_cli*", "symphony_vector*"]

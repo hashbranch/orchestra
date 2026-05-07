@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+set -eu
+
+if [ "$#" -ne 1 ]; then
+  echo "usage: scripts/install-on-vector vector@tailnet-hostname" >&2
+  exit 64
+fi
+
+host="$1"
+
+tar -cf - bin/symphony-ask-vector symphony_vector |
+  ssh -T -o BatchMode=yes -o ConnectTimeout=10 "$host" '
+    set -eu
+    install -d "$HOME/.openclaw/symphony-vector" "$HOME/.openclaw/bin"
+    tar -xf - -C "$HOME/.openclaw/symphony-vector"
+    ln -sf "$HOME/.openclaw/symphony-vector/bin/symphony-ask-vector" "$HOME/.openclaw/bin/symphony-ask-vector"
+    chmod +x "$HOME/.openclaw/symphony-vector/bin/symphony-ask-vector"
+  '
+
+echo "installed ~/.openclaw/bin/symphony-ask-vector on $host"

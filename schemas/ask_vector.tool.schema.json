@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ask_vector tool input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mode", "question"],
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": ["plan_review", "diff_review", "context_lookup", "risk_review"]
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plan": {
+      "type": ["string", "null"]
+    },
+    "diff": {
+      "type": ["string", "null"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "diff_review"
+          }
+        },
+        "required": ["mode"]
+      },
+      "then": {
+        "required": ["diff"],
+        "properties": {
+          "diff": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ]
+}

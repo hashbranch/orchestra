@@ -1,0 +1,48 @@
+#!/usr/bin/env sh
+set -eu
+
+python_bin="${PYTHON:-python3}"
+
+"$python_bin" -m pip install --user .
+
+scripts_dir="$("$python_bin" -c 'import site, sysconfig; print(site.USER_BASE + "/bin")')"
+shell_name="$(basename "${SHELL:-}")"
+
+case "$shell_name" in
+  zsh)
+    profile="${ZDOTDIR:-$HOME}/.zshrc"
+    ;;
+  bash)
+    if [ "$(uname -s)" = "Darwin" ]; then
+      profile="$HOME/.bash_profile"
+    else
+      profile="$HOME/.bashrc"
+    fi
+    ;;
+  *)
+    profile="$HOME/.profile"
+    ;;
+esac
+
+mkdir -p "$(dirname "$profile")"
+touch "$profile"
+
+path_line="export PATH=\"$scripts_dir:\$PATH\""
+
+if ! grep -F "$scripts_dir" "$profile" >/dev/null 2>&1; then
+  {
+    printf '\n# Added by Orchestra installer\n'
+    printf '%s\n' "$path_line"
+  } >> "$profile"
+  printf 'Added %s to PATH in %s\n' "$scripts_dir" "$profile"
+else
+  printf '%s already appears in %s\n' "$scripts_dir" "$profile"
+fi
+
+if command -v orchestra >/dev/null 2>&1; then
+  printf 'orchestra is available at %s\n' "$(command -v orchestra)"
+else
+  printf '\nCurrent shell does not see orchestra yet. Run:\n'
+  printf '  export PATH="%s:$PATH"\n' "$scripts_dir"
+  printf 'or open a new terminal.\n'
+fi
