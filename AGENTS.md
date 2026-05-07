@@ -19,6 +19,9 @@ not the source of truth.
 - Prefer small vertical slices with tests over broad speculative scaffolding.
 - Keep diagnostics on stderr and machine-readable responses on stdout.
 - Do not introduce network exposure for OpenClaw agents in V1; use Tailscale SSH only.
+- Record durable product, workflow, and architecture decisions in `docs/decisions/`
+  when implementation behavior changes. Do not leave decisions only in chat,
+  generated prompts, or code comments.
 
 ## Agent Skills
 

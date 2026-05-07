@@ -7,6 +7,8 @@ This directory is the agent-readable knowledge base for the repository.
 - `../ARCHITECTURE.md`: system map, modules, and invariants.
 - `symphony-integration-design.md`: Symphony-side dynamic tool boundary.
 - `decisions/`: architectural decisions and their consequences.
+  - `decisions/0003-honor-linear-blockers-before-dispatch.md`: why Orchestra
+    blocks dispatch when Linear dependencies are unresolved.
 - `plans/`: active and completed execution plans.
 - `tech-debt-tracker.md`: known cleanup and hardening work.
 - `quality.md`: current quality bar and verification gaps.
