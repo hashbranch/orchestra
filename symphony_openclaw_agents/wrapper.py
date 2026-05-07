@@ -15,15 +15,15 @@ SCHEMA_VERSION = "1.0"
 VALID_MODES = {"plan_review", "diff_review", "context_lookup", "risk_review"}
 DEFAULT_TIMEOUT_SECONDS = 180
 
-PROMPT_CONTRACT = """You are Vector participating in a Symphony coding workflow.
+PROMPT_CONTRACT = """You are an OpenClaw agent participating in a Symphony coding workflow.
 
 Role:
-- You are Tom's OpenClaw coding/context agent.
+- You are an advisory OpenClaw coding/context agent.
 - Codex owns implementation in the active Symphony workspace.
 - Your job is to review, advise, surface context, and produce instructions for Codex.
 
 Hard rules:
-- Do not message Tom.
+- Do not message the human operator.
 - Do not modify files.
 - Do not run external actions.
 - Do not assume you can access the Symphony workspace unless explicitly given files/diffs.
@@ -44,7 +44,7 @@ class RequestError(Exception):
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Ask Vector for Symphony review.")
+    parser = argparse.ArgumentParser(description="Ask an OpenClaw agent for Symphony review.")
     parser.add_argument("--openclaw-bin", default=os.environ.get("OPENCLAW_BIN", "openclaw"))
     parser.add_argument("--agent", default=os.environ.get("OPENCLAW_AGENT", "main"))
     parser.add_argument(
@@ -199,7 +199,7 @@ def normalize_success_response(request: dict[str, Any], output: str) -> dict[str
         {
             "status": "completed",
             "blocking": bool(parsed.get("blocking", False)),
-            "summary": string_or_default(parsed.get("summary"), "Vector review completed"),
+            "summary": string_or_default(parsed.get("summary"), "OpenClaw agent review completed"),
             "risks": list_or_empty(parsed.get("risks")),
             "recommendations": list_or_empty(parsed.get("recommendations")),
             "instructionsForCodex": list_or_empty(parsed.get("instructionsForCodex")),
@@ -220,7 +220,7 @@ def failed_response(request: dict[str, Any], code: str, message: str) -> dict[st
         {
             "status": "failed",
             "blocking": False,
-            "summary": "Vector review failed",
+            "summary": "OpenClaw agent review failed",
             "risks": [],
             "recommendations": [],
             "instructionsForCodex": [],

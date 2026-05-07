@@ -41,9 +41,10 @@ orchestra init
 
 `orchestra init` asks for:
 
-- Linear project slug
 - Linear API key, stored only in `~/.orchestra/config.json`; Enter uses `$LINEAR_API_KEY`
+- Linear project slug
 - target GitHub repo URL for Codex workspaces and PRs
+- max concurrent agents, default `1`
 
 Unattended setup:
 
@@ -52,6 +53,7 @@ orchestra init \
   --linear-project-slug your-project-slug \
   --linear-api-key "$LINEAR_API_KEY" \
   --github-repo git@github.com:your-org/your-repo.git \
+  --max-concurrent-agents 3 \
   --ready-state Todo \
   --working-state "In Progress" \
   --complete-state "Dev Complete" \
@@ -120,5 +122,5 @@ orchestra install-symphony --skip-build
 orchestra run
 ```
 
-The first goal is local Symphony + local Codex agents. Vector wiring can be added
+The first goal is local Symphony + local Codex agents. OpenClaw agents wiring can be added
 later by changing the generated `WORKFLOW.md` and using the wrapper docs.

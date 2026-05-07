@@ -1,14 +1,14 @@
-# Vector V1 Harness Plan
+# OpenClaw Agents V1 Harness Plan
 
 ## Goal
 
 Make this folder usable by future Codex runs as an agent-legible harness for
-installing local Symphony instances, with Vector/OpenClaw integration available
+installing local Symphony instances, with OpenClaw agents integration available
 as a later add-on.
 
 ## Current Slice
 
-- Vector wrapper exists and is tested.
+- OpenClaw agent wrapper exists and is tested.
 - `orchestra` CLI can initialize config, generate `WORKFLOW.md`, clone Symphony,
   check prerequisites, and run Symphony.
 - JSON schemas and sample payloads are local.
@@ -33,11 +33,11 @@ as a later add-on.
 - [x] Add agent-facing repo map.
 - [x] Add architecture and decision docs.
 - [x] Add validation harness.
-- [x] Patch local Symphony checkout with `ask_vector` dynamic tool support.
-- [x] Add Vector install and smoke-test scripts.
+- [x] Patch local Symphony checkout with `ask_openclaw_agent` dynamic tool support.
+- [x] Add OpenClaw agent host install and smoke-test scripts.
 - [x] Add installable `orchestra` CLI.
 - [x] Test console scripts in a temporary virtualenv.
 - [ ] Implement Symphony dynamic tool in the real Symphony codebase.
 - [ ] Run `orchestra install-symphony` on a machine with `mise` or `mix`.
 - [ ] Run a real local Symphony issue loop with Linear and Codex auth.
-- [ ] Run an end-to-end Tailscale SSH test against Vector.
+- [ ] Run an end-to-end Tailscale SSH test against an OpenClaw agent host.

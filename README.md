@@ -1,7 +1,7 @@
 # Orchestra
 
 Orchestra is a small bootstrap CLI for installing and running a local OpenAI
-Symphony instance on another machine. The Vector/OpenClaw wrapper remains in this
+Symphony instance on another machine. The OpenClaw agents wrapper remains in this
 repo, but it is not required for the first install path.
 
 ## Implemented
@@ -10,14 +10,14 @@ repo, but it is not required for the first install path.
 - Local config and `WORKFLOW.md` generation
 - Symphony clone/build/run commands
 - Local prerequisite checks via `orchestra doctor`
-- Vector-side wrapper executable: `bin/symphony-ask-vector`
+- OpenClaw-agent-side wrapper executable: `bin/symphony-ask-openclaw-agent`
 - Request validation for the V1 schema
-- Prompt contract that keeps Vector advisory only
+- Prompt contract that keeps OpenClaw agents advisory only
 - OpenClaw invocation with deterministic `symphony-<issue-identifier>` session IDs
 - Response normalization into the V1 JSON response schema
 - Failure wrapping for invalid requests, OpenClaw timeout/failure, and malformed output
 - Sample request payload: `samples/sample-request.json`
-- Symphony-facing tool schema: `schemas/ask_vector.tool.schema.json`
+- Symphony-facing tool schema: `schemas/ask_openclaw_agent.tool.schema.json`
 - Example participant config: `config/openclaw-participants.example.yaml`
 - Integration design note: `docs/symphony-integration-design.md`
 - Try-it-out runbook: `docs/try-it-out.md`
@@ -62,8 +62,8 @@ orchestra install-symphony
 orchestra run
 ```
 
-`orchestra init` prompts for the Linear project slug, Linear API key, and target
-repo URL. The key is stored in `~/.orchestra/config.json` but the generated
+`orchestra init` prompts for the Linear API key, Linear project slug, target
+repo URL, and max concurrent agents. The key is stored in `~/.orchestra/config.json` but the generated
 `WORKFLOW.md` always uses `$LINEAR_API_KEY`; `orchestra run` injects the stored
 key into Symphony's environment. You can also pass setup values as flags.
 
@@ -97,38 +97,38 @@ By default Orchestra writes to `~/.orchestra`:
   symphony/
 ```
 
-To run against a real Vector/OpenClaw install:
+To run against a real OpenClaw agent host install:
 
 ```bash
-bin/symphony-ask-vector < samples/sample-request.json
+bin/symphony-ask-openclaw-agent < samples/sample-request.json
 ```
 
 The wrapper accepts optional overrides:
 
 ```bash
 OPENCLAW_BIN=/path/to/openclaw OPENCLAW_AGENT=main OPENCLAW_TIMEOUT_SECONDS=180 \
-  bin/symphony-ask-vector < samples/sample-request.json
+  bin/symphony-ask-openclaw-agent < samples/sample-request.json
 ```
 
-## Install On Vector
+## Install On An OpenClaw Agent Host
 
-Copy this folder to Vector or package the wrapper into `~/.openclaw/bin`. The target
+Copy this folder to an OpenClaw agent host or package the wrapper into `~/.openclaw/bin`. The target
 entry point from the spec is:
 
 ```bash
-~/.openclaw/bin/symphony-ask-vector
+~/.openclaw/bin/symphony-ask-openclaw-agent
 ```
 
 If `openclaw` is not available in noninteractive SSH shells, set `OPENCLAW_BIN` in
-the wrapper environment or update Vector's shell profile for noninteractive SSH.
+the wrapper environment or update the OpenClaw agent host's shell profile for noninteractive SSH.
 
 ## Symphony Integration Boundary
 
 The Symphony codebase is not present in this folder, so the dynamic tool is not
 implemented here. The next implementation slice in Symphony should:
 
-- Add `openclaw_participants.vector` config with host, command, and timeout.
-- Expose `ask_vector` with the smaller tool schema from the spec.
+- Add `openclaw_participants.<name>` config with host, command, and timeout.
+- Expose `ask_openclaw_agent` with the smaller tool schema from the spec.
 - Enrich tool calls with issue metadata, repo metadata, request ID, branch, and
   standard constraints.
 - Invoke SSH with `BatchMode=yes`, `ConnectTimeout=10`, and `-T`.

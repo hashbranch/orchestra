@@ -4,7 +4,7 @@ Completed: 2026-05-07
 
 ## Outcome
 
-Created the first executable slice for the Vector participant:
+Created the first executable slice for the OpenClaw agent participant:
 
 - stdin request JSON
 - request validation

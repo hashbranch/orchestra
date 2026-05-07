@@ -1,8 +1,8 @@
-# Symphony x OpenClaw V1: Vector Review Participant
+# Symphony x OpenClaw V1: OpenClaw Agent Review Participant
 
 Status: Draft v1  
-Owner: Tom  
-Primary goal: Let a locally running Symphony instance ask Vector for memory-bearing design/context/diff review over Tailscale, while Codex remains the implementation worker.
+Owner: Hashbranch  
+Primary goal: Let a locally running Symphony instance ask configured OpenClaw agents for memory-bearing design/context/diff review over Tailscale, while Codex remains the implementation worker.
 
 ---
 
@@ -10,29 +10,29 @@ Primary goal: Let a locally running Symphony instance ask Vector for memory-bear
 
 Symphony is useful as a Codex-centered issue runner, but fresh Codex workers lack durable local context:
 
-- Tom/product/company preferences
+- operator/product/company preferences
 - prior architectural decisions
 - Hashbranch/OpenClaw conventions
 - judgment from prior work
 
-Vector has that context, but should not become another uncontrolled editor in the same Symphony workspace.
+OpenClaw agents can have that context, but should not become uncontrolled editors in the same Symphony workspace.
 
-V1 should let Symphony ask Vector for structured review/advice without giving Vector write access to the active Codex workspace.
+V1 should let Symphony ask OpenClaw agents for structured review/advice without giving them write access to the active Codex workspace.
 
 ---
 
 ## 2. V1 Principle
 
-**Codex edits. Vector reviews.**
+**Codex edits. OpenClaw agents review.**
 
-Vector is a contextual participant, not an implementation worker.
+OpenClaw agents are contextual participants, not implementation workers.
 
 V1 must avoid:
 
 - shared workspace writes
 - multi-agent file stomping
 - public Gateway exposure
-- sending Symphony chatter into Tom's normal Telegram session
+- sending Symphony chatter into a normal human-facing chat session
 - involving Forge/Meridian/ClawdActual yet
 
 ---
@@ -40,16 +40,16 @@ V1 must avoid:
 ## 3. Target Architecture
 
 ```text
-Tom's machine
+operator machine
   └─ Symphony
        ├─ Linear/GitHub orchestration
        ├─ Codex app-server worker(s)
-       └─ dynamic tool: ask_vector
+       └─ dynamic tool: ask_openclaw_agent
               |
               | Tailscale SSH
               v
-Vector MacBook Air
-  └─ ~/.openclaw/bin/symphony-ask-vector
+OpenClaw agent host
+  └─ ~/.openclaw/bin/symphony-ask-openclaw-agent
        └─ openclaw agent --agent main --session-id symphony-<issue-id> --json
 ```
 
@@ -59,9 +59,9 @@ V1 uses **Tailscale SSH** rather than HTTP/Gateway APIs. It is simpler, private,
 
 ## 4. Capabilities
 
-### `ask_vector`
+### `ask_openclaw_agent`
 
-Ask Vector for contextual review.
+Ask an OpenClaw agent for contextual review.
 
 Supported modes:
 
@@ -70,7 +70,7 @@ Supported modes:
 - `context_lookup`: when Codex needs project/company/context guidance
 - `risk_review`: when design/product/ops risk is unclear
 
-Vector returns structured JSON only.
+OpenClaw agents return structured JSON only.
 
 ---
 
@@ -80,8 +80,8 @@ Do not implement yet:
 
 - ClawdActual / Ken's OpenClaw integration
 - Forge or Meridian routing
-- Vector editing code
-- Vector opening PRs
+- OpenClaw agents editing code
+- OpenClaw agents opening PRs
 - shared workspace sync
 - HTTP participant bridge
 - long-running remote OpenClaw jobs
@@ -92,21 +92,21 @@ Do not implement yet:
 
 ## 6. Tailscale Requirements
 
-### Tom's machine
+### operator machine
 
-Must be able to SSH to Vector over Tailscale without interaction.
+Must be able to SSH to the OpenClaw agent host over Tailscale without interaction.
 
 Required checks:
 
 ```bash
 tailscale status
-ssh vector@<vector-tailnet-hostname> 'hostname'
-ssh vector@<vector-tailnet-hostname> 'openclaw status'
+ssh openclaw@<agent-tailnet-hostname> 'hostname'
+ssh openclaw@<agent-tailnet-hostname> 'openclaw status'
 ```
 
 SSH must be key-based, no password prompt.
 
-### Vector MacBook Air
+### OpenClaw agent host
 
 Must have:
 
@@ -115,7 +115,7 @@ Must have:
 - `openclaw` available in noninteractive SSH shell
 - Gateway running
 - model/auth working
-- wrapper script installed at `~/.openclaw/bin/symphony-ask-vector`
+- wrapper script installed at `~/.openclaw/bin/symphony-ask-openclaw-agent`
 
 If `openclaw` is not in PATH over SSH, wrapper should set PATH explicitly.
 
@@ -123,7 +123,7 @@ If `openclaw` is not in PATH over SSH, wrapper should set PATH explicitly.
 
 ## 7. Session Isolation
 
-Do not use Vector's normal Telegram/main session.
+Do not use an OpenClaw agent host's normal human-facing session.
 
 Use deterministic session IDs:
 
@@ -150,7 +150,7 @@ Purpose:
 
 ## 8. Request Schema
 
-Symphony sends JSON to Vector wrapper over stdin.
+Symphony sends JSON to OpenClaw agent wrapper over stdin.
 
 ```json
 {
@@ -176,7 +176,7 @@ Symphony sends JSON to Vector wrapper over stdin.
   "question": "What should Codex know before implementing this?",
   "constraints": [
     "Codex owns edits in this workspace",
-    "Vector should not modify files",
+    "OpenClaw agents should not modify files",
     "Return JSON only"
   ]
 }
@@ -196,7 +196,7 @@ Fields:
 
 ## 9. Response Schema
 
-Vector wrapper returns JSON to stdout.
+OpenClaw agent wrapper returns JSON to stdout.
 
 ```json
 {
@@ -233,7 +233,7 @@ On failure:
   "status": "failed",
   "mode": "plan_review",
   "blocking": false,
-  "summary": "Vector review failed",
+  "summary": "OpenClaw agent review failed",
   "risks": [],
   "recommendations": [],
   "instructionsForCodex": [],
@@ -247,22 +247,22 @@ On failure:
 
 ---
 
-## 10. Vector Wrapper Script
+## 10. OpenClaw Agent Wrapper Script
 
-Path on Vector:
+Path on an OpenClaw agent host:
 
 ```bash
-~/.openclaw/bin/symphony-ask-vector
+~/.openclaw/bin/symphony-ask-openclaw-agent
 ```
 
 Responsibilities:
 
 1. Read JSON request from stdin.
 2. Validate required fields.
-3. Build a prompt for Vector.
+3. Build a prompt for OpenClaw agent.
 4. Call OpenClaw CLI with isolated session id.
 5. Enforce timeout.
-6. Parse/normalize Vector output into response schema.
+6. Parse/normalize OpenClaw agent output into response schema.
 7. Print response JSON to stdout.
 8. Print diagnostics only to stderr.
 
@@ -283,20 +283,20 @@ Wrapper should never use `--deliver`.
 
 ---
 
-## 11. Prompt Contract for Vector
+## 11. Prompt Contract for OpenClaw Agents
 
 The wrapper should include this instruction block in every prompt:
 
 ```text
-You are Vector participating in a Symphony coding workflow.
+You are an OpenClaw agent participating in a Symphony coding workflow.
 
 Role:
-- You are Tom's OpenClaw coding/context agent.
+- You are an OpenClaw coding/context agent.
 - Codex owns implementation in the active Symphony workspace.
 - Your job is to review, advise, surface context, and produce instructions for Codex.
 
 Hard rules:
-- Do not message Tom.
+- Do not message the human operator.
 - Do not modify files.
 - Do not run external actions.
 - Do not assume you can access the Symphony workspace unless explicitly given files/diffs.
@@ -315,13 +315,13 @@ Add a dynamic tool in Symphony, probably next to current `linear_graphql` suppor
 Tool name:
 
 ```text
-ask_vector
+ask_openclaw_agent
 ```
 
 Description:
 
 ```text
-Ask Vector, Tom's OpenClaw coding/context agent, for plan, design, context, or diff review. Vector is advisory only and must not modify the active workspace.
+Ask a configured OpenClaw coding/context agent for plan, design, context, or diff review. OpenClaw agents are advisory only and must not modify the active workspace.
 ```
 
 Tool input schema should mirror the request schema, with a smaller surface available to Codex:
@@ -361,17 +361,17 @@ Config:
 
 ```yaml
 openclaw_participants:
-  vector:
+  main:
     kind: ssh
-    host: vector@<vector-tailnet-hostname>
-    command: ~/.openclaw/bin/symphony-ask-vector
+    host: openclaw@<agent-tailnet-hostname>
+    command: ~/.openclaw/bin/symphony-ask-openclaw-agent
     timeout_ms: 240000
 ```
 
 Execution pattern:
 
 ```bash
-ssh -T vector@<vector-tailnet-hostname> '~/.openclaw/bin/symphony-ask-vector' < request.json
+ssh -T openclaw@<agent-tailnet-hostname> '~/.openclaw/bin/symphony-ask-openclaw-agent' < request.json
 ```
 
 Recommended SSH options:
@@ -381,8 +381,8 @@ ssh \
   -T \
   -o BatchMode=yes \
   -o ConnectTimeout=10 \
-  vector@<vector-tailnet-hostname> \
-  '~/.openclaw/bin/symphony-ask-vector'
+  openclaw@<agent-tailnet-hostname> \
+  '~/.openclaw/bin/symphony-ask-openclaw-agent'
 ```
 
 Timeout should be enforced by Symphony as well as by the wrapper.
@@ -394,21 +394,21 @@ Timeout should be enforced by Symphony as well as by the wrapper.
 Add guidance to the repo workflow prompt:
 
 ```md
-## Vector Review
+## OpenClaw Agent Review
 
-You have access to `ask_vector`, an advisory tool that asks Tom's OpenClaw agent for contextual review.
+You have access to `ask_openclaw_agent`, an advisory tool that asks an OpenClaw agent for contextual review.
 
-Use `ask_vector` when:
+Use `ask_openclaw_agent` when:
 - requirements are ambiguous
 - product/business intent matters
 - implementation plan may conflict with existing Hashbranch/OpenClaw preferences
 - you are about to make a meaningful architectural decision
 - before requesting human review on a non-trivial diff
 
-Do not use `ask_vector` for tiny mechanical edits.
-Do not ask Vector to edit files. Codex owns implementation in this workspace.
-When Vector returns `instructionsForCodex`, incorporate them unless they conflict with the ticket or tests.
-If Vector marks `blocking=true`, pause and resolve the issue before continuing.
+Do not use `ask_openclaw_agent` for tiny mechanical edits.
+Do not ask OpenClaw agents to edit files. Codex owns implementation in this workspace.
+When OpenClaw agents return `instructionsForCodex`, incorporate them unless they conflict with the ticket or tests.
+If an OpenClaw agent marks `blocking=true`, pause and resolve the issue before continuing.
 ```
 
 ---
@@ -417,10 +417,10 @@ If Vector marks `blocking=true`, pause and resolve the issue before continuing.
 
 Symphony behavior:
 
-- If `ask_vector` fails during optional review, continue but log warning.
-- If `ask_vector` fails during required gate, mark issue blocked or ask human.
+- If `ask_openclaw_agent` fails during optional review, continue but log warning.
+- If `ask_openclaw_agent` fails during required gate, mark issue blocked or ask human.
 - If response is malformed JSON, wrap as failed response and expose stderr/logs.
-- If SSH fails, return `VECTOR_UNREACHABLE`.
+- If SSH fails, return `SSH_UNREACHABLE`.
 - If OpenClaw times out, return `OPENCLAW_TIMEOUT`.
 
 Suggested failure codes:
@@ -436,15 +436,15 @@ Suggested failure codes:
 
 ## 16. Security / Safety
 
-- Use Tailscale only. Do not expose Vector Gateway publicly.
+- Use Tailscale only. Do not expose OpenClaw agent Gateway publicly.
 - Use SSH key auth, no password prompts.
 - Use `BatchMode=yes` for noninteractive safety.
 - Wrapper must not run arbitrary commands from request payload.
 - Wrapper must treat request content as data, not shell input.
 - Quote all shell variables or avoid shell interpolation entirely.
 - Do not pass secrets in request payload.
-- Do not allow Vector to send external messages from this workflow.
-- Do not allow Vector to mutate Symphony workspace in V1.
+- Do not allow OpenClaw agent to send external messages from this workflow.
+- Do not allow OpenClaw agent to mutate Symphony workspace in V1.
 
 ---
 
@@ -452,23 +452,23 @@ Suggested failure codes:
 
 V1 is complete when:
 
-1. From Tom's machine:
+1. From operator machine:
    ```bash
-   ssh vector@<vector-tailnet-hostname> '~/.openclaw/bin/symphony-ask-vector' < sample-request.json
+   ssh openclaw@<agent-tailnet-hostname> '~/.openclaw/bin/symphony-ask-openclaw-agent' < sample-request.json
    ```
    returns valid response JSON.
 
-2. Symphony exposes `ask_vector` to Codex.
+2. Symphony exposes `ask_openclaw_agent` to Codex.
 
-3. Codex can call `ask_vector` during a test issue.
+3. Codex can call `ask_openclaw_agent` during a test issue.
 
-4. Vector response appears in Symphony logs/tool output.
+4. OpenClaw agent response appears in Symphony logs/tool output.
 
 5. Codex can incorporate `instructionsForCodex` into its next step.
 
-6. No message is sent to Tom's Telegram during the workflow.
+6. No message is sent to the operator's chat during the workflow.
 
-7. Vector does not modify the active workspace.
+7. OpenClaw agents do not modify the active workspace.
 
 ---
 
@@ -498,7 +498,7 @@ V1 is complete when:
   "question": "Review this plan for context/design risks before Codex implements it.",
   "constraints": [
     "Codex owns edits in this workspace",
-    "Vector should not modify files",
+    "OpenClaw agents should not modify files",
     "Return JSON only"
   ]
 }
@@ -511,22 +511,22 @@ V1 is complete when:
 After V1 works:
 
 - Add ClawdActual as second OpenClaw participant.
-- Generalize `ask_vector` into `ask_openclaw_participant`.
+- Generalize `ask_openclaw_agent` into `ask_openclaw_participant`.
 - Add participant registry to `WORKFLOW.md`.
 - Add diff summarization if raw diffs get too large.
 - Add optional required review gates by label/state.
 - Add HTTP bridge over Tailscale instead of SSH.
-- Add isolated execution mode where Vector/ClawdActual work in separate clones and return PRs or patches.
+- Add isolated execution mode where OpenClaw agent/ClawdActual work in separate clones and return PRs or patches.
 
 ---
 
 ## 20. Suggested Build Order
 
-1. Confirm Tailscale SSH from Tom machine to Vector.
-2. Create `~/.openclaw/bin/symphony-ask-vector` on Vector.
+1. Confirm Tailscale SSH from operator machine to OpenClaw agent.
+2. Create `~/.openclaw/bin/symphony-ask-openclaw-agent` on OpenClaw agent.
 3. Test wrapper manually with sample payload.
 4. Add Symphony config for OpenClaw participant SSH target.
-5. Add `ask_vector` dynamic tool implementation.
+5. Add `ask_openclaw_agent` dynamic tool implementation.
 6. Update `WORKFLOW.md` prompt guidance.
 7. Run a fake Linear issue through Symphony.
 8. Run one real low-risk issue.

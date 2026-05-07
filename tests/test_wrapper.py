@@ -3,7 +3,7 @@ import subprocess
 import unittest
 from unittest import mock
 
-from symphony_vector.wrapper import WrapperConfig, build_prompt, handle_stdin
+from symphony_openclaw_agents.wrapper import WrapperConfig, build_prompt, handle_stdin
 
 
 def sample_request(**overrides):
@@ -30,7 +30,7 @@ def sample_request(**overrides):
         "question": "Review this plan before Codex implements it.",
         "constraints": [
             "Codex owns edits in this workspace",
-            "Vector should not modify files",
+            "OpenClaw agents should not modify files",
             "Return JSON only",
         ],
     }
@@ -48,7 +48,7 @@ class WrapperTests(unittest.TestCase):
         self.assertIn("Do not modify files", prompt)
         self.assertIn('"identifier": "TEST-001"', prompt)
 
-    @mock.patch("symphony_vector.wrapper.subprocess.run")
+    @mock.patch("symphony_openclaw_agents.wrapper.subprocess.run")
     def test_success_response_is_normalized_to_contract(self, run):
         run.return_value = subprocess.CompletedProcess(
             args=[],
@@ -76,7 +76,7 @@ class WrapperTests(unittest.TestCase):
         self.assertEqual(response["instructionsForCodex"], ["Keep aliases explicit."])
         self.assertIsNone(response["error"])
 
-    @mock.patch("symphony_vector.wrapper.subprocess.run")
+    @mock.patch("symphony_openclaw_agents.wrapper.subprocess.run")
     def test_openclaw_called_with_isolated_symphony_session(self, run):
         run.return_value = subprocess.CompletedProcess(
             args=[],
@@ -106,7 +106,7 @@ class WrapperTests(unittest.TestCase):
         self.assertEqual(response["error"]["code"], "INVALID_REQUEST")
         self.assertIn("diff is required", response["error"]["message"])
 
-    @mock.patch("symphony_vector.wrapper.subprocess.run")
+    @mock.patch("symphony_openclaw_agents.wrapper.subprocess.run")
     def test_malformed_openclaw_json_is_wrapped(self, run):
         run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="not-json", stderr="")
 
@@ -115,7 +115,7 @@ class WrapperTests(unittest.TestCase):
         self.assertEqual(response["status"], "failed")
         self.assertEqual(response["error"]["code"], "MALFORMED_RESPONSE")
 
-    @mock.patch("symphony_vector.wrapper.subprocess.run")
+    @mock.patch("symphony_openclaw_agents.wrapper.subprocess.run")
     def test_timeout_is_wrapped(self, run):
         run.side_effect = subprocess.TimeoutExpired(cmd=["fake-openclaw"], timeout=185)
 

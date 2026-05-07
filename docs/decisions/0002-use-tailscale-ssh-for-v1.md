@@ -8,12 +8,12 @@ Accepted
 
 ## Context
 
-The Vector participant must be reachable from Tom's machine without exposing a
+The OpenClaw agent participant must be reachable from the operator machine without exposing a
 public Gateway or adding a service bridge before the prototype proves value.
 
 ## Decision
 
-Use Tailscale SSH to invoke `~/.openclaw/bin/symphony-ask-vector` on Vector.
+Use Tailscale SSH to invoke `~/.openclaw/bin/symphony-ask-openclaw-agent` on the OpenClaw agent host.
 
 Symphony sends the enriched request JSON on stdin. The wrapper returns response
 JSON on stdout and diagnostics on stderr.

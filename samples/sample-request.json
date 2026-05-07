@@ -21,7 +21,7 @@
   "question": "Review this plan for context/design risks before Codex implements it.",
   "constraints": [
     "Codex owns edits in this workspace",
-    "Vector should not modify files",
+    "OpenClaw agents should not modify files",
     "Return JSON only"
   ]
 }

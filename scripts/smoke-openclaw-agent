@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+set -eu
+
+if [ "$#" -ne 1 ]; then
+  echo "usage: scripts/smoke-openclaw-agent user@agent-tailnet-hostname" >&2
+  exit 64
+fi
+
+host="$1"
+
+ssh -T -o BatchMode=yes -o ConnectTimeout=10 "$host" \
+  '~/.openclaw/bin/symphony-ask-openclaw-agent' < samples/sample-request.json |
+  python3 -m json.tool

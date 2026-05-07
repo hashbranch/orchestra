@@ -1,4 +1,4 @@
-# 0001: Vector Is Advisory In V1
+# 0001: OpenClaw Agents Are Advisory In V1
 
 Date: 2026-05-07
 
@@ -9,18 +9,18 @@ Accepted
 ## Context
 
 Symphony needs durable product, architecture, and company context during Codex-led
-implementation. Vector has that memory, but sharing the active workspace would
+implementation. OpenClaw agents can have that memory, but sharing the active workspace would
 create file-stomping and authority problems.
 
 ## Decision
 
-V1 treats Vector as an advisory reviewer only.
+V1 treats OpenClaw agents as advisory reviewers only.
 
 - Codex edits.
-- Vector reviews.
-- Vector receives plans, questions, and diffs as data.
-- Vector returns structured JSON instructions for Codex.
-- Vector does not modify files, open PRs, deliver messages, or access the active
+- OpenClaw agents review.
+- OpenClaw agents receive plans, questions, and diffs as data.
+- OpenClaw agents return structured JSON instructions for Codex.
+- OpenClaw agents do not modify files, open PRs, deliver messages, or access the active
   Symphony workspace directly.
 
 ## Consequences

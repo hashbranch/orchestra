@@ -1,20 +1,20 @@
 # Symphony Integration Design
 
-This is the Symphony-side slice implied by `symphony-openclaw-vector-v1-spec.md`.
+This is the Symphony-side slice implied by `symphony-openclaw-agents-v1-spec.md`.
 The Symphony application code is not present in this folder, so these notes define
 the target integration boundary.
 
 ## Dynamic Tool
 
-Register a dynamic tool named `ask_vector`.
+Register a dynamic tool named `ask_openclaw_agent`.
 
 Tool description:
 
 ```text
-Ask Vector, Tom's OpenClaw coding/context agent, for plan, design, context, or diff review. Vector is advisory only and must not modify the active workspace.
+Ask a configured OpenClaw coding/context agent for plan, design, context, or diff review. OpenClaw agents are advisory only and must not modify the active workspace.
 ```
 
-Tool input schema lives at `schemas/ask_vector.tool.schema.json`. Codex should
+Tool input schema lives at `schemas/ask_openclaw_agent.tool.schema.json`. Codex should
 only provide `mode`, `question`, and optional `plan` or `diff`.
 
 ## Request Enrichment
@@ -31,14 +31,14 @@ Codex should not manually pass issue or repo metadata.
 
 ## SSH Invocation
 
-Use the configured Vector participant:
+Use the configured OpenClaw agent participant:
 
 ```yaml
 openclaw_participants:
-  vector:
+  main:
     kind: ssh
-    host: vector@vector-tailnet-hostname
-    command: ~/.openclaw/bin/symphony-ask-vector
+    host: openclaw@agent-tailnet-hostname
+    command: ~/.openclaw/bin/symphony-ask-openclaw-agent
     timeout_ms: 240000
 ```
 
@@ -67,9 +67,9 @@ If the wrapper returns a valid failed response, preserve its `error.code` and
 
 Add the spec's `WORKFLOW.md` guidance near existing tool guidance so Codex knows:
 
-- Vector is advisory only.
-- Use `ask_vector` for ambiguous requirements, architectural decisions, product
+- OpenClaw agents are advisory only.
+- Use `ask_openclaw_agent` for ambiguous requirements, architectural decisions, product
   or business context, and non-trivial diff review.
-- Do not use Vector for tiny mechanical edits.
+- Do not use OpenClaw agents for tiny mechanical edits.
 - Respect `instructionsForCodex` unless they conflict with the issue or tests.
-- Pause when Vector returns `blocking=true`.
+- Pause when OpenClaw agents return `blocking=true`.

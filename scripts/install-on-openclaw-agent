@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+set -eu
+
+if [ "$#" -ne 1 ]; then
+  echo "usage: scripts/install-on-openclaw-agent user@agent-tailnet-hostname" >&2
+  exit 64
+fi
+
+host="$1"
+
+tar -cf - bin/symphony-ask-openclaw-agent symphony_openclaw_agents |
+  ssh -T -o BatchMode=yes -o ConnectTimeout=10 "$host" '
+    set -eu
+    install -d "$HOME/.openclaw/symphony-openclaw-agent" "$HOME/.openclaw/bin"
+    tar -xf - -C "$HOME/.openclaw/symphony-openclaw-agent"
+    ln -sf "$HOME/.openclaw/symphony-openclaw-agent/bin/symphony-ask-openclaw-agent" "$HOME/.openclaw/bin/symphony-ask-openclaw-agent"
+    chmod +x "$HOME/.openclaw/symphony-openclaw-agent/bin/symphony-ask-openclaw-agent"
+  '
+
+echo "installed ~/.openclaw/bin/symphony-ask-openclaw-agent on $host"

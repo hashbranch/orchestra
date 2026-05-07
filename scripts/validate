@@ -6,7 +6,7 @@ export PYTHONDONTWRITEBYTECODE=1
 scripts/test
 
 python3 -m json.tool samples/sample-request.json >/dev/null
-python3 -m json.tool schemas/ask_vector.tool.schema.json >/dev/null
+python3 -m json.tool schemas/ask_openclaw_agent.tool.schema.json >/dev/null
 
 python3 -m orchestra_cli.main --home /tmp/orchestra-validate init \
   --linear-project-slug validate-project \
@@ -19,14 +19,14 @@ python3 -m orchestra_cli --help >/dev/null
 test -x scripts/install-orchestra
 
 OPENCLAW_BIN=tests/fixtures/fake-openclaw \
-  bin/symphony-ask-vector < samples/sample-request.json >/tmp/symphony-vector-smoke-response.json
+  bin/symphony-ask-openclaw-agent < samples/sample-request.json >/tmp/symphony-openclaw-agent-smoke-response.json
 
-python3 -m json.tool /tmp/symphony-vector-smoke-response.json >/dev/null
+python3 -m json.tool /tmp/symphony-openclaw-agent-smoke-response.json >/dev/null
 
-python3 -c 'import json; r=json.load(open("/tmp/symphony-vector-smoke-response.json")); assert r["status"] == "completed"; assert r["requestId"] == "test-001"; assert r["instructionsForCodex"]'
+python3 -c 'import json; r=json.load(open("/tmp/symphony-openclaw-agent-smoke-response.json")); assert r["status"] == "completed"; assert r["requestId"] == "test-001"; assert r["instructionsForCodex"]'
 
 test -f AGENTS.md
 test -f ARCHITECTURE.md
 test -f docs/index.md
-test -f docs/decisions/0001-vector-is-advisory.md
-test -f docs/plans/active/vector-v1-harness.md
+test -f docs/decisions/0001-openclaw-agents-are-advisory.md
+test -f docs/plans/active/openclaw-agents-v1-harness.md

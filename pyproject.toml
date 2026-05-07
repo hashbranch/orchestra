@@ -10,10 +10,10 @@ requires-python = ">=3.10"
 
 [project.scripts]
 orchestra = "orchestra_cli.main:main"
-symphony-ask-vector = "symphony_vector.wrapper:main"
+symphony-ask-openclaw-agent = "symphony_openclaw_agents.wrapper:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 
 [tool.setuptools.packages.find]
-include = ["orchestra_cli*", "symphony_vector*"]
+include = ["orchestra_cli*", "symphony_openclaw_agents*"]

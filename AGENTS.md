@@ -5,7 +5,7 @@ not the source of truth.
 
 ## Start Here
 
-- Product/spec source: `symphony-openclaw-vector-v1-spec.md`
+- Product/spec source: `symphony-openclaw-agents-v1-spec.md`
 - Architecture map: `ARCHITECTURE.md`
 - Documentation index: `docs/index.md`
 - Install guide: `docs/install-orchestra.md`
@@ -14,11 +14,11 @@ not the source of truth.
 ## Working Rules
 
 - Codex owns edits in this workspace.
-- Vector is advisory only and must not modify the active workspace.
+- OpenClaw agents are advisory only and must not modify the active workspace.
 - Treat request and response JSON schemas as boundary contracts.
 - Prefer small vertical slices with tests over broad speculative scaffolding.
 - Keep diagnostics on stderr and machine-readable responses on stdout.
-- Do not introduce network exposure for Vector in V1; use Tailscale SSH only.
+- Do not introduce network exposure for OpenClaw agents in V1; use Tailscale SSH only.
 
 ## Agent Skills
 

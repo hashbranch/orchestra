@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ask_vector tool input",
+  "title": "ask_openclaw_agent tool input",
   "type": "object",
   "additionalProperties": false,
   "required": ["mode", "question"],

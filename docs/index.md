@@ -24,5 +24,5 @@ For implementation work:
 5. Run `../scripts/validate` before returning.
 
 For design work, start with the spec at
-`../symphony-openclaw-vector-v1-spec.md`, then read the architecture and decision
+`../symphony-openclaw-agents-v1-spec.md`, then read the architecture and decision
 docs.
