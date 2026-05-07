@@ -85,6 +85,11 @@ approval policy `never`. This is necessary for the local runner to write `.git`,
 use the network, push branches, and create GitHub PRs without a human approval
 prompt.
 
+During `orchestra install-symphony` and `orchestra run`, Orchestra patches the
+local Symphony checkout to honor Linear dependency order before dispatch. Issues
+with unresolved non-terminal `blocked by` relations are skipped even if their
+state is otherwise active.
+
 To rotate or add the key later:
 
 ```bash

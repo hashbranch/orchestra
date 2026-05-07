@@ -78,6 +78,10 @@ Orchestra's generated workflow runs Codex with `danger-full-access`. That is
 required for unattended GitHub delivery because the agent has to write Git
 metadata, reach GitHub, push branches, and open PRs from the local machine.
 
+Orchestra also patches the local Symphony checkout so Linear `blocked by`
+relations are honored before dispatch. Any issue with unresolved non-terminal
+blockers is skipped, even when the issue is otherwise in an active state.
+
 To update the stored Linear key later:
 
 ```bash

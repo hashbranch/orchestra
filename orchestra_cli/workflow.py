@@ -95,6 +95,7 @@ Instructions:
 3. Work only in the provided repository copy.
 4. Final message must report completed actions, PR URL, validation, and blockers only.
 5. Treat `{states["ready"]}` as ready for work, `{states["working"]}` as actively running, `{states["complete"]}` as development complete after PR handoff, and `{states["blocked"]}` as blocked when that state exists.
+6. Respect Linear dependency ordering: do not start or continue implementation on an issue with unresolved `blocked by` relations or a blocked status. If dependencies are unresolved, leave the issue out of active work, document the blocker, and do not create a PR for dependent work.
 
 GitHub delivery requirements:
 

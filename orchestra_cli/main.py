@@ -175,6 +175,9 @@ def cmd_install_symphony(args: argparse.Namespace) -> int:
         print(f"Expected Symphony Elixir directory at {elixir_dir}", file=sys.stderr)
         return 1
 
+    if not ensure_symphony_blocker_patch(elixir_dir):
+        return 1
+
     if args.skip_build:
         print(f"Installed Symphony source at {checkout}; skipped build.")
         return 0
@@ -220,6 +223,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         return 1
     if not wf_path.exists():
         print(f"Workflow file does not exist at {wf_path}. Run `orchestra init` first.", file=sys.stderr)
+        return 1
+    if not ensure_symphony_blocker_patch(elixir_dir):
         return 1
 
     command = ["./bin/symphony", str(wf_path)] + args.extra_arg
@@ -336,6 +341,61 @@ def build_symphony(elixir_dir: Path, toolchain: tuple[str, str]) -> None:
         run([executable, "build"], cwd=elixir_dir)
     else:
         raise ValueError(f"unsupported toolchain: {toolchain!r}")
+
+
+def ensure_symphony_blocker_patch(elixir_dir: Path) -> bool:
+    orchestrator = elixir_dir / "lib" / "symphony_elixir" / "orchestrator.ex"
+    if not orchestrator.exists():
+        print(f"Expected Symphony orchestrator at {orchestrator}", file=sys.stderr)
+        return False
+
+    text = orchestrator.read_text(encoding="utf-8")
+    if "issue_blocked_by_non_terminal?" in text and "todo_issue_blocked_by_non_terminal?" not in text:
+        return True
+
+    updated = text.replace("!todo_issue_blocked_by_non_terminal?(issue, terminal_states)", "!issue_blocked_by_non_terminal?(issue, terminal_states)")
+    old_function = """  defp todo_issue_blocked_by_non_terminal?(
+         %Issue{state: issue_state, blocked_by: blockers},
+         terminal_states
+       )
+       when is_binary(issue_state) and is_list(blockers) do
+    normalize_issue_state(issue_state) == "todo" and
+      Enum.any?(blockers, fn
+        %{state: blocker_state} when is_binary(blocker_state) ->
+          !terminal_issue_state?(blocker_state, terminal_states)
+
+        _ ->
+          true
+      end)
+  end
+
+  defp todo_issue_blocked_by_non_terminal?(_issue, _terminal_states), do: false
+"""
+    new_function = """  defp issue_blocked_by_non_terminal?(
+         %Issue{blocked_by: blockers},
+         terminal_states
+       )
+       when is_list(blockers) do
+    Enum.any?(blockers, fn
+      %{state: blocker_state} when is_binary(blocker_state) ->
+        !terminal_issue_state?(blocker_state, terminal_states)
+
+      _ ->
+        true
+    end)
+  end
+
+  defp issue_blocked_by_non_terminal?(_issue, _terminal_states), do: false
+"""
+    updated = updated.replace(old_function, new_function)
+
+    if updated == text or "todo_issue_blocked_by_non_terminal?" in updated:
+        print("Could not patch Symphony blocker scheduling logic; upstream file shape changed.", file=sys.stderr)
+        return False
+
+    orchestrator.write_text(updated, encoding="utf-8")
+    print("Patched Symphony to skip any issue with unresolved Linear blockers.")
+    return True
 
 
 def install_mise_binary() -> bool:

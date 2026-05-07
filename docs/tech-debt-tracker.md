@@ -10,6 +10,7 @@
 - Add a Homebrew tap or release binary if `pipx install git+...` is not enough.
 - Decide whether Orchestra should pin upstream Symphony by commit or track a fork.
 - Add an optional `orchestra init --from-linear-url` parser for project URLs.
+- Replace Orchestra's local Symphony source patch with an upstream Symphony release once unresolved blocker filtering applies to every active state upstream.
 
 ## Closed
 
@@ -20,3 +21,4 @@
 - Patched a local OpenAI Symphony checkout under `vendor/openai-symphony/elixir`.
 - Added installable `orchestra` CLI for local Symphony bootstrap.
 - Made `orchestra init` collect Linear project, Linear API key, and target repo.
+- Patched local Symphony installs to skip active issues with unresolved Linear blockers.

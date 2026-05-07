@@ -5,8 +5,33 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from orchestra_cli.main import ensure_elixir_toolchain, main, redacted_config, run_env
+from orchestra_cli.main import ensure_elixir_toolchain, ensure_symphony_blocker_patch, main, redacted_config, run_env
 from orchestra_cli.workflow import workflow_text
+
+
+ORCHESTRATOR_WITH_TODO_BLOCKER = """defmodule SymphonyElixir.Orchestrator do
+  defp should_dispatch_issue?(issue, terminal_states) do
+    !todo_issue_blocked_by_non_terminal?(issue, terminal_states)
+  end
+
+  defp todo_issue_blocked_by_non_terminal?(
+         %Issue{state: issue_state, blocked_by: blockers},
+         terminal_states
+       )
+       when is_binary(issue_state) and is_list(blockers) do
+    normalize_issue_state(issue_state) == "todo" and
+      Enum.any?(blockers, fn
+        %{state: blocker_state} when is_binary(blocker_state) ->
+          !terminal_issue_state?(blocker_state, terminal_states)
+
+        _ ->
+          true
+      end)
+  end
+
+  defp todo_issue_blocked_by_non_terminal?(_issue, _terminal_states), do: false
+end
+"""
 
 
 class OrchestraCliTests(unittest.TestCase):
@@ -53,6 +78,7 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertIn("move the Linear issue to `Dev Complete`", workflow)
             self.assertNotIn("Human Review", workflow)
             self.assertIn("Do not move the Linear issue to any terminal state", workflow)
+            self.assertIn("Respect Linear dependency ordering", workflow)
 
     def test_workflow_always_uses_linear_api_key_env_reference(self):
         text = workflow_text(
@@ -91,6 +117,7 @@ class OrchestraCliTests(unittest.TestCase):
         self.assertIn('    - "Ready for QA"', text)
         self.assertIn("move the Linear issue to `Ready for QA`", text)
         self.assertIn("otherwise leave it in `Building`", text)
+        self.assertIn("do not start or continue implementation on an issue with unresolved `blocked by` relations", text)
         self.assertIn('    - "Done"', text)
         self.assertIn('    - "Canceled"', text)
 
@@ -205,6 +232,9 @@ class OrchestraCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp) / "orchestra"
             (home / "symphony" / "elixir").mkdir(parents=True)
+            orchestrator = home / "symphony" / "elixir" / "lib" / "symphony_elixir" / "orchestrator.ex"
+            orchestrator.parent.mkdir(parents=True)
+            orchestrator.write_text(ORCHESTRATOR_WITH_TODO_BLOCKER, encoding="utf-8")
             (home / "WORKFLOW.md").write_text("---\n---\n", encoding="utf-8")
             (home / "config.json").write_text("{}", encoding="utf-8")
 
@@ -308,8 +338,11 @@ class OrchestraCliTests(unittest.TestCase):
             source = Path(tmp) / "source"
             home = Path(tmp) / "home"
             (source / "elixir").mkdir(parents=True)
+            orchestrator = source / "elixir" / "lib" / "symphony_elixir" / "orchestrator.ex"
+            orchestrator.parent.mkdir(parents=True)
             (source / "README.md").write_text("source\n", encoding="utf-8")
             (source / "elixir" / "README.md").write_text("elixir\n", encoding="utf-8")
+            orchestrator.write_text(ORCHESTRATOR_WITH_TODO_BLOCKER, encoding="utf-8")
 
             import subprocess
 
@@ -333,6 +366,25 @@ class OrchestraCliTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertTrue((home / "symphony" / "elixir").is_dir())
+            patched = (home / "symphony" / "elixir" / "lib" / "symphony_elixir" / "orchestrator.ex").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("issue_blocked_by_non_terminal?", patched)
+            self.assertNotIn("todo_issue_blocked_by_non_terminal?", patched)
+
+    def test_symphony_blocker_patch_skips_any_state_with_unresolved_blockers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            elixir = Path(tmp) / "elixir"
+            orchestrator = elixir / "lib" / "symphony_elixir" / "orchestrator.ex"
+            orchestrator.parent.mkdir(parents=True)
+            orchestrator.write_text(ORCHESTRATOR_WITH_TODO_BLOCKER, encoding="utf-8")
+
+            self.assertTrue(ensure_symphony_blocker_patch(elixir))
+
+            patched = orchestrator.read_text(encoding="utf-8")
+            self.assertIn("!issue_blocked_by_non_terminal?(issue, terminal_states)", patched)
+            self.assertNotIn('normalize_issue_state(issue_state) == "todo"', patched)
+            self.assertNotIn("todo_issue_blocked_by_non_terminal?", patched)
 
 
 if __name__ == "__main__":
