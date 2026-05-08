@@ -1,0 +1,43 @@
+#!/usr/bin/env sh
+set -eu
+
+repo_url="${ORCHESTRA_REPO_URL:-https://github.com/hashbranch/orchestra.git}"
+install_dir="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"
+python_bin="${PYTHON:-python3}"
+
+need() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    printf 'Missing required command: %s\n' "$1" >&2
+    exit 1
+  fi
+}
+
+need git
+need "$python_bin"
+
+printf 'Installing Orchestra\n'
+printf '  Repo: %s\n' "$repo_url"
+printf '  Source: %s\n' "$install_dir"
+
+if [ -d "$install_dir/.git" ]; then
+  printf 'Updating existing checkout...\n'
+  git -C "$install_dir" fetch origin
+  git -C "$install_dir" checkout main
+  git -C "$install_dir" pull --ff-only origin main
+elif [ -e "$install_dir" ]; then
+  printf 'Install path exists but is not a Git checkout: %s\n' "$install_dir" >&2
+  printf 'Set ORCHESTRA_INSTALL_DIR to another path or move the existing directory.\n' >&2
+  exit 1
+else
+  mkdir -p "$(dirname "$install_dir")"
+  git clone "$repo_url" "$install_dir"
+fi
+
+cd "$install_dir"
+PYTHON="$python_bin" scripts/install-orchestra
+
+printf '\nInstall complete.\n'
+printf 'Next commands:\n'
+printf '  orchestra init\n'
+printf '  orchestra doctor\n'
+printf '  orchestra install-symphony\n'

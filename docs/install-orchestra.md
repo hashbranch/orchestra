@@ -14,7 +14,17 @@ Symphony instance with its own Linear token and Codex agents.
 
 ## Install CLI
 
-From a checkout:
+One-line install from GitHub:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | sh
+```
+
+This clones or updates Orchestra under `~/.orchestra/source`, installs the
+Python package, and adds Python's user script directory to your shell profile
+when needed.
+
+From an existing checkout:
 
 ```bash
 scripts/install-orchestra
@@ -22,12 +32,6 @@ scripts/install-orchestra
 
 This installs the package and adds Python's user script directory to your shell
 profile when needed.
-
-From a hosted Git repo later:
-
-```bash
-pipx install git+https://github.com/your-org/orchestra.git
-```
 
 ## Initialize
 
@@ -65,6 +69,7 @@ This creates:
 ```text
 ~/.orchestra/config.json
 ~/.orchestra/WORKFLOW.md
+~/.orchestra/source/
 ~/.orchestra/workspaces/
 ```
 

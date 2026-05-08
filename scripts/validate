@@ -16,7 +16,9 @@ python3 -m orchestra_cli.main --home /tmp/orchestra-validate init \
 python3 -m orchestra_cli.main --home /tmp/orchestra-validate show paths >/dev/null
 python3 -m orchestra_cli.main --home /tmp/orchestra-validate show workflow >/dev/null
 python3 -m orchestra_cli --help >/dev/null
+sh -n scripts/install
 test -x scripts/install-orchestra
+test -x scripts/install
 
 OPENCLAW_BIN=tests/fixtures/fake-openclaw \
   bin/symphony-ask-openclaw-agent < samples/sample-request.json >/tmp/symphony-openclaw-agent-smoke-response.json

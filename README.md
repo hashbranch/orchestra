@@ -37,7 +37,17 @@ scripts/test
 
 ## Install On Another Machine
 
-From a Git checkout:
+One-line install from GitHub:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | sh
+```
+
+That clones or updates Orchestra under `~/.orchestra/source`, installs
+the Python package, and adds Python's user script directory to your shell profile
+when needed.
+
+From an existing Git checkout:
 
 ```bash
 scripts/install-orchestra
@@ -45,12 +55,6 @@ scripts/install-orchestra
 
 This wraps `pip install --user .` and adds Python's user script directory to your
 shell profile when needed.
-
-Or, once this repo is pushed somewhere reachable:
-
-```bash
-pipx install git+https://github.com/your-org/orchestra.git
-```
 
 Initialize a local Symphony install:
 
@@ -95,6 +99,7 @@ By default Orchestra writes to `~/.orchestra`:
 
 ```text
 ~/.orchestra/
+  source/
   config.json
   WORKFLOW.md
   workspaces/
