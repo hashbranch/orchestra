@@ -22,7 +22,9 @@ curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/i
 
 This clones or updates Orchestra under `~/.orchestra/source`, installs the
 Python package, and adds Python's user script directory to your shell profile
-when needed.
+when needed. The directory is computed from your active Python install, not
+hardcoded. Open a new terminal after install, or run the `export PATH=...` line
+printed by the installer for the current terminal.
 
 From an existing checkout:
 

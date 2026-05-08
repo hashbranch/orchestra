@@ -36,7 +36,16 @@ fi
 cd "$install_dir"
 PYTHON="$python_bin" scripts/install-orchestra
 
+scripts_dir="$("$python_bin" -c 'import site; print(site.USER_BASE + "/bin")')"
+
 printf '\nInstall complete.\n'
+if command -v orchestra >/dev/null 2>&1; then
+  printf 'orchestra is available at %s\n' "$(command -v orchestra)"
+else
+  printf 'This shell does not see orchestra yet because installers cannot mutate their parent shell environment.\n'
+  printf 'Run this once in the current terminal, or open a new terminal:\n'
+  printf '  export PATH="%s:$PATH"\n' "$scripts_dir"
+fi
 printf 'Next commands:\n'
 printf '  orchestra init\n'
 printf '  orchestra doctor\n'
