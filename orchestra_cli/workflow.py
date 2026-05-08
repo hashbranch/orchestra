@@ -6,6 +6,7 @@ from typing import Any
 
 def workflow_text(config: dict[str, Any]) -> str:
     states = workflow_states(config)
+    reviewers = config.get("pr_reviewers", ["vector-hb", "nathaniel-hb"])
 
     lines = [
         "---",
@@ -37,7 +38,7 @@ def workflow_text(config: dict[str, Any]) -> str:
         *yaml_map(config.get("codex_turn_sandbox_policy", {"type": "dangerFullAccess"}), 4),
         "---",
         "",
-        prompt_body(states),
+        prompt_body(states, reviewers),
     ]
 
     return "\n".join(lines) + "\n"
@@ -71,7 +72,10 @@ def workflow_states(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def prompt_body(states: dict[str, Any]) -> str:
+def prompt_body(states: dict[str, Any], reviewers: list[str]) -> str:
+    reviewer_list = ", ".join(f"`{reviewer}`" for reviewer in reviewers)
+    reviewer_cli_args = " ".join(f"--add-reviewer {reviewer}" for reviewer in reviewers)
+
     return f"""You are working on a Linear ticket `{{{{ issue.identifier }}}}`.
 
 Issue context:
@@ -100,16 +104,24 @@ Instructions:
 GitHub delivery requirements:
 
 - Always create a branch for the issue before committing changes.
+- Branch names must use exactly one of these prefixes: `feature/`, `bugfix/`, or `hotfix/`.
+- Branch names must be formatted as `<prefix>{{{{ issue.identifier }}}}-short-kebab-summary`, for example `feature/{{{{ issue.identifier }}}}-add-login-form`.
+- Choose `bugfix/` for defects, `hotfix/` for urgent production fixes, and `feature/` for all other work.
+- Never include a person's name, username, initials, or owner prefix in a branch name.
 - Always commit completed changes.
 - Always push the branch to origin.
 - Always open a GitHub PR against the repository's default branch.
 - The PR title must start with the Linear issue identifier, for example `{{{{ issue.identifier }}}}: {{{{ issue.title }}}}`.
 - Add or attach the PR link to the Linear issue.
-- Never move the Linear issue to any terminal state, including `Done`, `Closed`, `Cancelled`, `Canceled`, or `Duplicate`.
-- When the PR exists and validation is complete, move the Linear issue to `{states["complete"]}`.
+- Assign these PR reviewers before claiming completion: {reviewer_list}. With GitHub CLI, use `gh pr edit <PR> {reviewer_cli_args}`.
+- Check all GitHub PR review comments, review threads, status checks, and automated Gemini code review feedback before claiming completion.
+- For every review comment or Gemini recommendation: read it, evaluate whether it is valid, incorporate changes when valid, reply with what changed or why no change was made, and resolve the thread when GitHub allows it.
+- Do not claim completion while valid review feedback remains unaddressed.
+- Never move the Linear issue to any terminal state, including `Done`, `Closed`, `Cancelled`, `Canceled`, or `Duplicate`. The only successful handoff state is `{states["complete"]}`.
+- When the PR exists, validation is complete, required reviewers are assigned, and review feedback has been handled, move the Linear issue to `{states["complete"]}`.
 - After moving the Linear issue to `{states["complete"]}`, stop work on that issue and do not advance it again.
 - If you cannot push or create a PR, move the issue to `{states["blocked"]}` if that state exists; otherwise leave it in `{states["working"]}` and document the blocker.
-- Do not claim completion unless a GitHub PR exists.
+- Do not claim completion unless a GitHub PR exists and all PR review requirements above are complete.
 
 Use `linear_graphql` when you need to update the Linear workpad or inspect issue context.
 Keep progress in a single persistent issue comment when your workflow requires one.

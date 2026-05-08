@@ -25,6 +25,10 @@ not the source of truth.
 - Keep Linear `Dev Complete` as a non-active PR handoff state. Agents must not
   move issues to terminal states such as `Done`; see
   `docs/decisions/0004-dev-complete-is-linear-handoff.md`.
+- Preserve the GitHub PR delivery contract: branch names use only
+  `feature/`, `bugfix/`, or `hotfix/`; required reviewers are `vector-hb` and
+  `nathaniel-hb`; Gemini/GitHub review feedback must be handled before Linear
+  handoff. See `docs/decisions/0005-standardize-github-pr-delivery.md`.
 
 ## Agent Skills
 

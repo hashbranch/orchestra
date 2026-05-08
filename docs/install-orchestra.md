@@ -88,6 +88,14 @@ from `config.json`; it is not written into `WORKFLOW.md`.
 The GitHub repo for PRs is the configured target repo. Orchestra writes a
 `hooks.after_create` step that runs `git clone <target repo> .`, so every Codex
 workspace has that repo as `origin`. GitHub PR commands use that `origin` remote.
+Generated workflows require branches to use `feature/`, `bugfix/`, or `hotfix/`
+followed by the Linear issue identifier and a short kebab-case summary; branches
+must not include a person's name or username.
+
+Generated workflows also require Codex to assign `vector-hb` and
+`nathaniel-hb` as PR reviewers, check Gemini and GitHub PR review feedback,
+address valid comments, reply to comments, and resolve threads before moving the
+Linear issue to the complete state.
 
 The Linear state names are configurable at init. Orchestra uses the ready state
 to decide what Symphony should pick up, the working state while an agent is

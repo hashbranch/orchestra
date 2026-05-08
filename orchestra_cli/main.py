@@ -138,6 +138,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         "codex_turn_sandbox_policy": {"type": "dangerFullAccess"},
         "max_concurrent_agents": max_concurrent_agents,
         "max_turns": args.max_turns,
+        "pr_reviewers": ["vector-hb", "nathaniel-hb"],
         "states": {
             "ready": args.ready_state,
             "working": args.working_state,
