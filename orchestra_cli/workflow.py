@@ -114,10 +114,10 @@ GitHub delivery requirements:
 - The PR title must start with the Linear issue identifier, for example `{{{{ issue.identifier }}}}: {{{{ issue.title }}}}`.
 - Add or attach the PR link to the Linear issue.
 - Assign these PR reviewers before claiming completion: {reviewer_list}. With GitHub CLI, use `gh pr edit <PR> {reviewer_cli_args}`.
-- After opening the PR and assigning reviewers, run `orchestra pr-feedback wait --wait-seconds 300 --poll-seconds 15 --format markdown` from the PR branch. This is a required wait for automated reviewers such as Gemini to post feedback.
+- After opening the PR and assigning reviewers, run `orchestra github pr-feedback wait --wait-seconds 300 --poll-seconds 15 --format markdown` from the PR branch. This is a required wait for automated reviewers such as Gemini to post feedback.
 - Use the PR feedback helper output as the source of truth for GitHub PR review comments, review threads, status checks, and automated Gemini code review feedback.
 - For every review comment or Gemini recommendation: read it, evaluate whether it is valid, incorporate changes when valid, reply with what changed or why no change was made, and resolve the thread when GitHub allows it.
-- If you push follow-up commits after review feedback, run `orchestra pr-feedback wait --wait-seconds 300 --poll-seconds 15 --format markdown` again before claiming completion.
+- If you push follow-up commits after review feedback, run `orchestra github pr-feedback wait --wait-seconds 300 --poll-seconds 15 --format markdown` again before claiming completion.
 - Do not claim completion while valid review feedback remains unaddressed.
 - Never move the Linear issue to any terminal state, including `Done`, `Closed`, `Cancelled`, `Canceled`, or `Duplicate`. The only successful handoff state is `{states["complete"]}`.
 - When the PR exists, validation is complete, required reviewers are assigned, and review feedback has been handled, move the Linear issue to `{states["complete"]}`.

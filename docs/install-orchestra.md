@@ -100,7 +100,7 @@ Agents use the generic helper below as a deterministic wait-and-collect step;
 the agent still owns judging and fixing the feedback:
 
 ```bash
-orchestra pr-feedback wait --wait-seconds 300 --poll-seconds 15 --format markdown
+orchestra github pr-feedback wait --wait-seconds 300 --poll-seconds 15 --format markdown
 ```
 
 The Linear state names are configurable at init. Orchestra uses the ready state

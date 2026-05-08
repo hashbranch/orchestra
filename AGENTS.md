@@ -30,9 +30,13 @@ not the source of truth.
   `nathaniel-hb`; Gemini/GitHub review feedback must be handled before Linear
   handoff. See `docs/decisions/0005-standardize-github-pr-delivery.md`.
 - Keep PR feedback judgment with the builder agent. The helper
-  `orchestra pr-feedback wait` may wait and collect feedback, but must not decide
-  validity, modify code, resolve comments, or move Linear; see
+  `orchestra github pr-feedback wait` may wait and collect feedback, but must
+  not decide validity, modify code, resolve comments, or move Linear; see
   `docs/decisions/0006-agent-owned-pr-feedback-gate.md`.
+- Add built-in helpers under provider/domain namespaces such as
+  `orchestra github ...`, `orchestra linear ...`, `orchestra git ...`, or
+  `orchestra validation ...`; see
+  `docs/decisions/0007-provider-scoped-helper-commands.md`.
 
 ## Agent Skills
 

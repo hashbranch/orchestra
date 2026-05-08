@@ -17,8 +17,8 @@ Orchestra encode project workflow logic that may not generalize.
 
 ## Decision
 
-Orchestra provides a generic `orchestra pr-feedback wait` helper. The helper is
-an orchestration primitive:
+Orchestra provides a generic `orchestra github pr-feedback wait` helper. The
+helper is an orchestration primitive:
 
 - resolve the current PR
 - wait for a configured observation window
@@ -38,4 +38,3 @@ PR feedback handling remains agent-owned while the waiting and collection step i
 deterministic and testable. Project-specific policy stays in generated
 `WORKFLOW.md`; the helper remains reusable for other workflows that need a PR
 feedback observation window.
-

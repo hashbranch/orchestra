@@ -139,6 +139,42 @@ class PrFeedbackTests(unittest.TestCase):
 
         with mock.patch("orchestra_cli.pr_feedback.subprocess.run", side_effect=[completed(pr_view), completed(graphql)]):
             with mock.patch("sys.stdout") as stdout:
+                exit_code = main(["github", "pr-feedback", "wait", "--wait-seconds", "0", "--format", "json"])
+
+        self.assertEqual(exit_code, 0)
+        output = "".join(call.args[0] for call in stdout.write.call_args_list if call.args)
+        self.assertEqual(json.loads(output)["pr"]["number"], 1)
+
+    def test_deprecated_cli_pr_feedback_alias_still_outputs_json(self):
+        pr_view = {
+            "number": 1,
+            "title": "CLA-1: Test",
+            "url": "https://github.com/hashbranch/demo/pull/1",
+            "state": "OPEN",
+            "isDraft": False,
+            "reviewDecision": None,
+        }
+        graphql = {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "number": 1,
+                        "title": "CLA-1: Test",
+                        "url": "https://github.com/hashbranch/demo/pull/1",
+                        "state": "OPEN",
+                        "isDraft": False,
+                        "reviewDecision": None,
+                        "comments": {"nodes": []},
+                        "reviews": {"nodes": []},
+                        "reviewThreads": {"nodes": []},
+                        "commits": {"nodes": []},
+                    }
+                }
+            }
+        }
+
+        with mock.patch("orchestra_cli.pr_feedback.subprocess.run", side_effect=[completed(pr_view), completed(graphql)]):
+            with mock.patch("sys.stdout") as stdout:
                 exit_code = main(["pr-feedback", "wait", "--wait-seconds", "0", "--format", "json"])
 
         self.assertEqual(exit_code, 0)
@@ -148,4 +184,3 @@ class PrFeedbackTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

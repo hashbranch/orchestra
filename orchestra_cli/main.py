@@ -83,28 +83,21 @@ def main(argv: list[str] | None = None) -> int:
     refresh_parser = subcommands.add_parser("refresh-workflow", help="Regenerate WORKFLOW.md from config.")
     refresh_parser.set_defaults(func=cmd_refresh_workflow)
 
-    pr_feedback_parser = subcommands.add_parser("pr-feedback", help="PR feedback helper commands for agents.")
+    github_parser = subcommands.add_parser("github", help="GitHub helper commands for agents.")
+    github_subcommands = github_parser.add_subparsers(dest="github_command", required=True)
+    github_pr_feedback_parser = github_subcommands.add_parser("pr-feedback", help="GitHub PR feedback helpers.")
+    github_pr_feedback_subcommands = github_pr_feedback_parser.add_subparsers(
+        dest="github_pr_feedback_command",
+        required=True,
+    )
+    add_pr_feedback_wait_parser(github_pr_feedback_subcommands)
+
+    pr_feedback_parser = subcommands.add_parser(
+        "pr-feedback",
+        help="Deprecated alias for `orchestra github pr-feedback`.",
+    )
     pr_feedback_subcommands = pr_feedback_parser.add_subparsers(dest="pr_feedback_command", required=True)
-    pr_feedback_wait_parser = pr_feedback_subcommands.add_parser(
-        "wait",
-        help="Wait for GitHub PR feedback and print a normalized summary.",
-    )
-    pr_feedback_wait_parser.add_argument("--pr", help="PR number or URL. Defaults to the PR for the current branch.")
-    pr_feedback_wait_parser.add_argument("--repo", help="GitHub repo in owner/name form. Inferred from the PR URL when omitted.")
-    pr_feedback_wait_parser.add_argument(
-        "--wait-seconds",
-        type=int,
-        default=300,
-        help="Total observation window before returning feedback.",
-    )
-    pr_feedback_wait_parser.add_argument(
-        "--poll-seconds",
-        type=int,
-        default=15,
-        help="How often to poll GitHub during the observation window.",
-    )
-    pr_feedback_wait_parser.add_argument("--format", choices=["markdown", "json"], default="markdown")
-    pr_feedback_wait_parser.set_defaults(func=cmd_pr_feedback_wait)
+    add_pr_feedback_wait_parser(pr_feedback_subcommands)
 
     set_key_parser = subcommands.add_parser("set-linear-key", help="Store or update the Linear API key in config.")
     set_key_parser.add_argument("--linear-api-key", help="Linear API key. Omit to prompt securely.")
@@ -112,6 +105,29 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     return args.func(args)
+
+
+def add_pr_feedback_wait_parser(subcommands: argparse._SubParsersAction) -> None:
+    wait_parser = subcommands.add_parser(
+        "wait",
+        help="Wait for GitHub PR feedback and print a normalized summary.",
+    )
+    wait_parser.add_argument("--pr", help="PR number or URL. Defaults to the PR for the current branch.")
+    wait_parser.add_argument("--repo", help="GitHub repo in owner/name form. Inferred from the PR URL when omitted.")
+    wait_parser.add_argument(
+        "--wait-seconds",
+        type=int,
+        default=300,
+        help="Total observation window before returning feedback.",
+    )
+    wait_parser.add_argument(
+        "--poll-seconds",
+        type=int,
+        default=15,
+        help="How often to poll GitHub during the observation window.",
+    )
+    wait_parser.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    wait_parser.set_defaults(func=cmd_pr_feedback_wait)
 
 
 def cmd_init(args: argparse.Namespace) -> int:
