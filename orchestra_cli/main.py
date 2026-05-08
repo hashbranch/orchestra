@@ -37,6 +37,12 @@ from orchestra_cli.trace import (
     parse_payload_json,
     write_trace_event,
 )
+from orchestra_cli.pr_review_dispatch import (
+    DEFAULT_TIMEOUT_SECONDS as DEFAULT_PR_REVIEW_TIMEOUT_SECONDS,
+    PrReviewDispatchError,
+    PrReviewDispatchOptions,
+    dispatch_pr_review,
+)
 from orchestra_cli.workflow import default_after_create, write_workflow
 
 
@@ -114,6 +120,12 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
     )
     add_reviewers_ensure_parser(github_reviewers_subcommands)
+    github_pr_review_parser = github_subcommands.add_parser("pr-review", help="GitHub PR review dispatch helpers.")
+    github_pr_review_subcommands = github_pr_review_parser.add_subparsers(
+        dest="github_pr_review_command",
+        required=True,
+    )
+    add_pr_review_dispatch_parser(github_pr_review_subcommands)
 
     pr_feedback_parser = subcommands.add_parser(
         "pr-feedback",
@@ -180,6 +192,45 @@ def add_reviewers_ensure_parser(subcommands: argparse._SubParsersAction) -> None
     )
     ensure_parser.add_argument("--format", choices=["markdown", "json"], default="markdown")
     ensure_parser.set_defaults(func=cmd_reviewers_ensure)
+
+
+def add_pr_review_dispatch_parser(subcommands: argparse._SubParsersAction) -> None:
+    dispatch_parser = subcommands.add_parser(
+        "dispatch",
+        help="Dispatch a GitHub PR review request to an OpenClaw agent.",
+    )
+    dispatch_parser.add_argument(
+        "--event-file",
+        help="GitHub pull_request webhook payload JSON file. Use '-' to read stdin.",
+    )
+    dispatch_parser.add_argument("--repo", help="GitHub repo in owner/name form for explicit dispatch.")
+    dispatch_parser.add_argument("--pr", type=int, help="Pull request number for explicit dispatch.")
+    dispatch_parser.add_argument("--url", help="Pull request URL for explicit dispatch.")
+    dispatch_parser.add_argument("--title", help="Pull request title for explicit dispatch.")
+    dispatch_parser.add_argument("--author", help="Pull request author login for explicit dispatch.")
+    dispatch_parser.add_argument("--base-ref", help="Pull request base branch for explicit dispatch.")
+    dispatch_parser.add_argument("--head-ref", help="Pull request head branch for explicit dispatch.")
+    dispatch_parser.add_argument("--head-sha", help="Pull request head SHA for explicit dispatch.")
+    dispatch_parser.add_argument("--requested-reviewer", help="Reviewer or team that triggered explicit dispatch.")
+    dispatch_parser.add_argument(
+        "--match-reviewer",
+        action="append",
+        default=[],
+        help="Only dispatch webhook events requested for this reviewer or team. Repeatable.",
+    )
+    dispatch_parser.add_argument(
+        "--openclaw-host",
+        help="Optional Tailscale SSH host for the OpenClaw agent machine. Omit to run OpenClaw locally.",
+    )
+    dispatch_parser.add_argument("--openclaw-bin", default=os.environ.get("OPENCLAW_BIN", "openclaw"))
+    dispatch_parser.add_argument("--agent", default=os.environ.get("OPENCLAW_AGENT", "main"))
+    dispatch_parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_PR_REVIEW_TIMEOUT_SECONDS)
+    dispatch_parser.add_argument("--deliver", action="store_true", help="Ask OpenClaw to deliver the final reply.")
+    dispatch_parser.add_argument("--reply-channel", help="OpenClaw delivery channel, for example slack.")
+    dispatch_parser.add_argument("--reply-to", help="OpenClaw delivery target, for example a Slack channel ID.")
+    dispatch_parser.add_argument("--thinking", help="OpenClaw thinking level override.")
+    dispatch_parser.add_argument("--dry-run", action="store_true", help="Print the normalized dispatch without running it.")
+    dispatch_parser.set_defaults(func=cmd_pr_review_dispatch)
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -432,6 +483,57 @@ def trace_helper_event(home: Path, result: dict[str, Any], kind: str) -> None:
             kind=kind,
             source="orchestra",
             message=str(result.get("summary") or kind),
+            payload=result,
+            cwd=os.getcwd(),
+        )
+    except OSError as error:
+        print(f"Warning: could not write trace event: {error}", file=sys.stderr)
+
+
+def cmd_pr_review_dispatch(args: argparse.Namespace) -> int:
+    try:
+        result = dispatch_pr_review(
+            PrReviewDispatchOptions(
+                event_file=args.event_file,
+                repo=args.repo,
+                pr=args.pr,
+                url=args.url,
+                title=args.title,
+                author=args.author,
+                base_ref=args.base_ref,
+                head_ref=args.head_ref,
+                head_sha=args.head_sha,
+                requested_reviewer=args.requested_reviewer,
+                match_reviewers=args.match_reviewer,
+                openclaw_host=args.openclaw_host,
+                openclaw_bin=args.openclaw_bin,
+                agent=args.agent,
+                timeout_seconds=args.timeout_seconds,
+                deliver=args.deliver,
+                reply_channel=args.reply_channel,
+                reply_to=args.reply_to,
+                thinking=args.thinking,
+                dry_run=args.dry_run,
+            )
+        )
+        trace_pr_review_dispatch_event(args.home.expanduser(), result)
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 1 if result.get("status") == "failed" else 0
+    except PrReviewDispatchError as error:
+        print(f"PR review dispatch failed: {error}", file=sys.stderr)
+        return 1
+
+
+def trace_pr_review_dispatch_event(home: Path, result: dict[str, Any]) -> None:
+    request = result.get("request") or {}
+    issue = infer_issue_identifier(str(request.get("title") or ""), str(request.get("url") or ""))
+    try:
+        write_trace_event(
+            home,
+            issue=issue,
+            kind=f"github.pr_review.dispatch.{result.get('status', 'completed')}",
+            source="orchestra",
+            message=str(result.get("reason") or result.get("status") or "github.pr_review.dispatch"),
             payload=result,
             cwd=os.getcwd(),
         )
