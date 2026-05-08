@@ -29,6 +29,10 @@ not the source of truth.
   `feature/`, `bugfix/`, or `hotfix/`; required reviewers are `vector-hb` and
   `nathaniel-hb`; Gemini/GitHub review feedback must be handled before Linear
   handoff. See `docs/decisions/0005-standardize-github-pr-delivery.md`.
+- Keep PR feedback judgment with the builder agent. The helper
+  `orchestra pr-feedback wait` may wait and collect feedback, but must not decide
+  validity, modify code, resolve comments, or move Linear; see
+  `docs/decisions/0006-agent-owned-pr-feedback-gate.md`.
 
 ## Agent Skills
 

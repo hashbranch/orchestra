@@ -96,6 +96,12 @@ Generated workflows also require Codex to assign `vector-hb` and
 `nathaniel-hb` as PR reviewers, check Gemini and GitHub PR review feedback,
 address valid comments, reply to comments, and resolve threads before moving the
 Linear issue to the complete state.
+Agents use the generic helper below as a deterministic wait-and-collect step;
+the agent still owns judging and fixing the feedback:
+
+```bash
+orchestra pr-feedback wait --wait-seconds 300 --poll-seconds 15 --format markdown
+```
 
 The Linear state names are configurable at init. Orchestra uses the ready state
 to decide what Symphony should pick up, the working state while an agent is

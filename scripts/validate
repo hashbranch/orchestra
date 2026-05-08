@@ -15,6 +15,7 @@ python3 -m orchestra_cli.main --home /tmp/orchestra-validate init \
 
 python3 -m orchestra_cli.main --home /tmp/orchestra-validate show paths >/dev/null
 python3 -m orchestra_cli.main --home /tmp/orchestra-validate show workflow >/dev/null
+python3 -m orchestra_cli.main pr-feedback wait --help >/dev/null
 python3 -m orchestra_cli --help >/dev/null
 sh -n scripts/install
 test -x scripts/install-orchestra
