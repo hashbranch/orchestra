@@ -22,6 +22,9 @@ not the source of truth.
 - Record durable product, workflow, and architecture decisions in `docs/decisions/`
   when implementation behavior changes. Do not leave decisions only in chat,
   generated prompts, or code comments.
+- Keep Linear `Dev Complete` as a non-active PR handoff state. Agents must not
+  move issues to terminal states such as `Done`; see
+  `docs/decisions/0004-dev-complete-is-linear-handoff.md`.
 
 ## Agent Skills
 

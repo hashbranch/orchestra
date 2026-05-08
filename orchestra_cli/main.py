@@ -79,6 +79,9 @@ def main(argv: list[str] | None = None) -> int:
     show_parser.add_argument("what", choices=["paths", "config", "workflow"])
     show_parser.set_defaults(func=cmd_show)
 
+    refresh_parser = subcommands.add_parser("refresh-workflow", help="Regenerate WORKFLOW.md from config.")
+    refresh_parser.set_defaults(func=cmd_refresh_workflow)
+
     set_key_parser = subcommands.add_parser("set-linear-key", help="Store or update the Linear API key in config.")
     set_key_parser.add_argument("--linear-api-key", help="Linear API key. Omit to prompt securely.")
     set_key_parser.set_defaults(func=cmd_set_linear_key)
@@ -247,6 +250,22 @@ def cmd_show(args: argparse.Namespace) -> int:
         print(json.dumps(redacted_config(load_config(home)), indent=2, sort_keys=True))
     elif args.what == "workflow":
         print(workflow_path(home).read_text(encoding="utf-8"), end="")
+    return 0
+
+
+def cmd_refresh_workflow(args: argparse.Namespace) -> int:
+    home = args.home.expanduser()
+    cfg_path = config_path(home)
+    wf_path = workflow_path(home)
+
+    try:
+        config = load_config(home)
+    except FileNotFoundError:
+        print(f"Config does not exist at {cfg_path}. Run `orchestra init` first.", file=sys.stderr)
+        return 1
+
+    write_workflow(wf_path, config)
+    print(f"Regenerated workflow at {wf_path}")
     return 0
 
 

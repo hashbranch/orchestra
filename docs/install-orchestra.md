@@ -92,6 +92,15 @@ workspace has that repo as `origin`. GitHub PR commands use that `origin` remote
 The Linear state names are configurable at init. Orchestra uses the ready state
 to decide what Symphony should pick up, the working state while an agent is
 running, and the complete state after a PR exists and validation is complete.
+The complete state is a handoff state, not active work. Orchestra does not tell
+agents to move Linear issues to terminal states such as `Done`.
+
+After upgrading Orchestra, regenerate the local workflow from config without
+re-entering secrets:
+
+```bash
+orchestra refresh-workflow
+```
 
 The generated Codex policy is intentionally broad: `danger-full-access` with
 approval policy `never`. This is necessary for the local runner to write `.git`,

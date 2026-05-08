@@ -76,8 +76,10 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertIn("The PR title must start with the Linear issue identifier", workflow)
             self.assertIn("{{ issue.identifier }}: {{ issue.title }}", workflow)
             self.assertIn("move the Linear issue to `Dev Complete`", workflow)
+            self.assertIn("`Dev Complete` as a non-active PR handoff state", workflow)
             self.assertNotIn("Human Review", workflow)
-            self.assertIn("Do not move the Linear issue to any terminal state", workflow)
+            self.assertIn("Never move the Linear issue to any terminal state", workflow)
+            self.assertIn("After moving the Linear issue to `Dev Complete`, stop work", workflow)
             self.assertIn("Respect Linear dependency ordering", workflow)
 
     def test_workflow_always_uses_linear_api_key_env_reference(self):
@@ -112,9 +114,14 @@ class OrchestraCliTests(unittest.TestCase):
             }
         )
 
-        self.assertIn('    - "Ready for Dev"', text)
-        self.assertIn('    - "Building"', text)
-        self.assertIn('    - "Ready for QA"', text)
+        self.assertIn(
+            '  active_states:\n    - "Ready for Dev"\n    - "Building"\n    - "Merging"\n    - "Rework"\n',
+            text,
+        )
+        self.assertNotIn(
+            '  active_states:\n    - "Ready for Dev"\n    - "Building"\n    - "Ready for QA"\n',
+            text,
+        )
         self.assertIn("move the Linear issue to `Ready for QA`", text)
         self.assertIn("otherwise leave it in `Building`", text)
         self.assertIn("do not start or continue implementation on an issue with unresolved `blocked by` relations", text)
@@ -279,6 +286,40 @@ class OrchestraCliTests(unittest.TestCase):
             workflow = (home / "WORKFLOW.md").read_text(encoding="utf-8")
             self.assertIn("api_key: $LINEAR_API_KEY", workflow)
             self.assertNotIn("lin_api_rotated", workflow)
+
+    def test_refresh_workflow_regenerates_from_existing_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "orchestra"
+            home.mkdir()
+            (home / "config.json").write_text(
+                json.dumps(
+                    {
+                        "linear_project_slug": "project",
+                        "linear_api_key": "lin_api_configured",
+                        "target_repo": "git@github.com:example/repo.git",
+                        "workspace_root": str(home / "workspaces"),
+                        "after_create": "git clone git@github.com:example/repo.git .",
+                        "states": {
+                            "ready": "Todo",
+                            "working": "In Progress",
+                            "complete": "Dev Complete",
+                            "blocked": "Blocked",
+                            "terminal": ["Done"],
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (home / "WORKFLOW.md").write_text("stale workflow\n", encoding="utf-8")
+
+            exit_code = main(["--home", str(home), "refresh-workflow"])
+
+            self.assertEqual(exit_code, 0)
+            workflow = (home / "WORKFLOW.md").read_text(encoding="utf-8")
+            self.assertIn("project_slug: \"project\"", workflow)
+            self.assertIn("api_key: $LINEAR_API_KEY", workflow)
+            self.assertNotIn("lin_api_configured", workflow)
+            self.assertIn("Never move the Linear issue to any terminal state", workflow)
 
     def test_init_noninteractive_requires_project_and_target_repo_flags(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -14,7 +14,7 @@ def workflow_text(config: dict[str, Any]) -> str:
         "  api_key: $LINEAR_API_KEY",
         f"  project_slug: {yaml_scalar(config['linear_project_slug'])}",
         "  active_states:",
-        *yaml_list([states["ready"], states["working"], states["complete"], "Merging", "Rework"]),
+        *yaml_list([states["ready"], states["working"], "Merging", "Rework"]),
         "  terminal_states:",
         *yaml_list(states["terminal"]),
         "polling:",
@@ -94,7 +94,7 @@ Instructions:
 2. Only stop early for a true blocker: missing required auth, permissions, secrets, or tools.
 3. Work only in the provided repository copy.
 4. Final message must report completed actions, PR URL, validation, and blockers only.
-5. Treat `{states["ready"]}` as ready for work, `{states["working"]}` as actively running, `{states["complete"]}` as development complete after PR handoff, and `{states["blocked"]}` as blocked when that state exists.
+5. Treat `{states["ready"]}` as ready for work, `{states["working"]}` as actively running, `{states["complete"]}` as a non-active PR handoff state, and `{states["blocked"]}` as blocked when that state exists.
 6. Respect Linear dependency ordering: do not start or continue implementation on an issue with unresolved `blocked by` relations or a blocked status. If dependencies are unresolved, leave the issue out of active work, document the blocker, and do not create a PR for dependent work.
 
 GitHub delivery requirements:
@@ -105,8 +105,9 @@ GitHub delivery requirements:
 - Always open a GitHub PR against the repository's default branch.
 - The PR title must start with the Linear issue identifier, for example `{{{{ issue.identifier }}}}: {{{{ issue.title }}}}`.
 - Add or attach the PR link to the Linear issue.
-- Do not move the Linear issue to any terminal state.
+- Never move the Linear issue to any terminal state, including `Done`, `Closed`, `Cancelled`, `Canceled`, or `Duplicate`.
 - When the PR exists and validation is complete, move the Linear issue to `{states["complete"]}`.
+- After moving the Linear issue to `{states["complete"]}`, stop work on that issue and do not advance it again.
 - If you cannot push or create a PR, move the issue to `{states["blocked"]}` if that state exists; otherwise leave it in `{states["working"]}` and document the blocker.
 - Do not claim completion unless a GitHub PR exists.
 
