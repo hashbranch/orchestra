@@ -80,7 +80,7 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertIn("The PR title must start with the Linear issue identifier", workflow)
             self.assertIn("{{ issue.identifier }}: {{ issue.title }}", workflow)
             self.assertIn("Assign these PR reviewers before claiming completion: `vector-hb`, `nathaniel-hb`", workflow)
-            self.assertIn("gh pr edit <PR> --add-reviewer vector-hb --add-reviewer nathaniel-hb", workflow)
+            self.assertIn("orchestra github reviewers ensure --reviewer vector-hb --reviewer nathaniel-hb", workflow)
             self.assertIn("orchestra github pr-feedback wait --wait-seconds 300 --poll-seconds 15", workflow)
             self.assertIn("required wait for automated reviewers such as Gemini", workflow)
             self.assertIn("automated Gemini code review feedback", workflow)

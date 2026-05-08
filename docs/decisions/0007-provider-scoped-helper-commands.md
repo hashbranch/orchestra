@@ -29,6 +29,12 @@ The canonical PR feedback command is:
 orchestra github pr-feedback wait
 ```
 
+The canonical reviewer assignment command is:
+
+```bash
+orchestra github reviewers ensure
+```
+
 The older flat command remains as a compatibility alias for now:
 
 ```bash
@@ -43,4 +49,3 @@ Agents can infer service boundaries from command names. Future helpers should be
 added under their provider/domain namespace rather than at the top level, unless
 the top-level command is a core Orchestra lifecycle command such as `init`,
 `doctor`, or `run`.
-

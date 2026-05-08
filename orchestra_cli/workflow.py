@@ -74,7 +74,7 @@ def workflow_states(config: dict[str, Any]) -> dict[str, Any]:
 
 def prompt_body(states: dict[str, Any], reviewers: list[str]) -> str:
     reviewer_list = ", ".join(f"`{reviewer}`" for reviewer in reviewers)
-    reviewer_cli_args = " ".join(f"--add-reviewer {reviewer}" for reviewer in reviewers)
+    reviewer_helper_args = " ".join(f"--reviewer {reviewer}" for reviewer in reviewers)
 
     return f"""You are working on a Linear ticket `{{{{ issue.identifier }}}}`.
 
@@ -113,7 +113,7 @@ GitHub delivery requirements:
 - Always open a GitHub PR against the repository's default branch.
 - The PR title must start with the Linear issue identifier, for example `{{{{ issue.identifier }}}}: {{{{ issue.title }}}}`.
 - Add or attach the PR link to the Linear issue.
-- Assign these PR reviewers before claiming completion: {reviewer_list}. With GitHub CLI, use `gh pr edit <PR> {reviewer_cli_args}`.
+- Assign these PR reviewers before claiming completion: {reviewer_list}. Run `orchestra github reviewers ensure {reviewer_helper_args}` from the PR branch.
 - After opening the PR and assigning reviewers, run `orchestra github pr-feedback wait --wait-seconds 300 --poll-seconds 15 --format markdown` from the PR branch. This is a required wait for automated reviewers such as Gemini to post feedback.
 - Use the PR feedback helper output as the source of truth for GitHub PR review comments, review threads, status checks, and automated Gemini code review feedback.
 - For every review comment or Gemini recommendation: read it, evaluate whether it is valid, incorporate changes when valid, reply with what changed or why no change was made, and resolve the thread when GitHub allows it.

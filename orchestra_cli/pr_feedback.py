@@ -115,6 +115,14 @@ class FeedbackOptions:
     output_format: str = "markdown"
 
 
+@dataclass
+class ReviewerOptions:
+    reviewers: list[str]
+    pr: str | None = None
+    repo: str | None = None
+    output_format: str = "markdown"
+
+
 class PrFeedbackError(RuntimeError):
     pass
 
@@ -156,6 +164,40 @@ def fetch_pr_view(pr: str | None, repo: str | None, *, cwd: str | None = None) -
     return run_json(command, cwd=cwd)
 
 
+def ensure_pr_reviewers(options: ReviewerOptions, *, cwd: str | None = None) -> dict[str, Any]:
+    reviewers = normalize_reviewers(options.reviewers)
+    if not reviewers:
+        raise PrFeedbackError("At least one reviewer is required.")
+
+    pr_view = fetch_pr_view(options.pr, options.repo, cwd=cwd)
+    command = ["gh", "pr", "edit"]
+    if options.pr:
+        command.append(options.pr)
+    for reviewer in reviewers:
+        command.extend(["--add-reviewer", reviewer])
+    if options.repo:
+        command.extend(["--repo", options.repo])
+
+    run_command(command, cwd=cwd)
+    updated = fetch_pr_view(options.pr, options.repo, cwd=cwd)
+    owner, name = resolve_repo(options.repo, updated)
+
+    return {
+        "schema_version": 1,
+        "repo": f"{owner}/{name}",
+        "pr": {
+            "number": updated.get("number"),
+            "title": updated.get("title"),
+            "url": updated.get("url"),
+            "state": updated.get("state"),
+            "is_draft": updated.get("isDraft"),
+            "review_decision": updated.get("reviewDecision"),
+        },
+        "requested_reviewers": reviewers,
+        "summary": f"Requested reviewers: {', '.join(reviewers)}",
+    }
+
+
 def fetch_pr_feedback(owner: str, name: str, number: int, *, cwd: str | None = None) -> dict[str, Any]:
     return run_json(
         [
@@ -175,14 +217,19 @@ def fetch_pr_feedback(owner: str, name: str, number: int, *, cwd: str | None = N
     )
 
 
-def run_json(command: list[str], *, cwd: str | None = None) -> dict[str, Any]:
+def run_command(command: list[str], *, cwd: str | None = None) -> str:
     completed = subprocess.run(command, cwd=cwd, capture_output=True, text=True)
     if completed.returncode != 0:
         stderr = completed.stderr.strip()
         raise PrFeedbackError(stderr or f"command failed: {' '.join(command)}")
+    return completed.stdout
+
+
+def run_json(command: list[str], *, cwd: str | None = None) -> dict[str, Any]:
+    stdout = run_command(command, cwd=cwd)
 
     try:
-        parsed = json.loads(completed.stdout or "{}")
+        parsed = json.loads(stdout or "{}")
     except json.JSONDecodeError as error:
         raise PrFeedbackError(f"command returned invalid JSON: {' '.join(command)}") from error
 
@@ -190,6 +237,18 @@ def run_json(command: list[str], *, cwd: str | None = None) -> dict[str, Any]:
         raise PrFeedbackError(f"command returned non-object JSON: {' '.join(command)}")
 
     return parsed
+
+
+def normalize_reviewers(reviewers: list[str]) -> list[str]:
+    seen = set()
+    normalized = []
+    for reviewer in reviewers:
+        value = reviewer.strip()
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        normalized.append(value)
+    return normalized
 
 
 def resolve_repo(repo: str | None, pr_view: dict[str, Any]) -> tuple[str, str]:
@@ -359,6 +418,25 @@ def format_feedback(snapshot: dict[str, Any], output_format: str) -> str:
     return "\n".join(lines)
 
 
+def format_reviewer_result(result: dict[str, Any], output_format: str) -> str:
+    if output_format == "json":
+        return json.dumps(result, indent=2, sort_keys=True)
+    if output_format != "markdown":
+        raise PrFeedbackError(f"Unsupported output format: {output_format}")
+
+    reviewers = ", ".join(f"`{reviewer}`" for reviewer in result["requested_reviewers"])
+    pr = result["pr"]
+    return "\n".join(
+        [
+            f"# PR reviewers for {result['repo']}#{pr['number']}",
+            "",
+            f"- URL: {pr.get('url')}",
+            f"- Requested reviewers: {reviewers}",
+            "",
+        ]
+    )
+
+
 def nodes_at(parent: dict[str, Any], key: str) -> list[dict[str, Any]]:
     nodes = (parent.get(key) or {}).get("nodes") or []
     return [node for node in nodes if isinstance(node, dict)]
@@ -423,4 +501,3 @@ def status_summary(pr: dict[str, Any]) -> dict[str, Any]:
             )
 
     return {"commit": commit.get("oid"), "state": rollup.get("state"), "checks": checks}
-

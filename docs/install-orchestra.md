@@ -95,7 +95,13 @@ must not include a person's name or username.
 Generated workflows also require Codex to assign `vector-hb` and
 `nathaniel-hb` as PR reviewers, check Gemini and GitHub PR review feedback,
 address valid comments, reply to comments, and resolve threads before moving the
-Linear issue to the complete state.
+Linear issue to the complete state. Agents use deterministic GitHub helpers for
+reviewer assignment and feedback collection:
+
+```bash
+orchestra github reviewers ensure --reviewer vector-hb --reviewer nathaniel-hb
+```
+
 Agents use the generic helper below as a deterministic wait-and-collect step;
 the agent still owns judging and fixing the feedback:
 

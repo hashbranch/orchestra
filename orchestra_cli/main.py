@@ -19,7 +19,15 @@ from orchestra_cli.paths import (
     workflow_path,
     workspaces_path,
 )
-from orchestra_cli.pr_feedback import FeedbackOptions, PrFeedbackError, format_feedback, wait_for_pr_feedback
+from orchestra_cli.pr_feedback import (
+    FeedbackOptions,
+    PrFeedbackError,
+    ReviewerOptions,
+    ensure_pr_reviewers,
+    format_feedback,
+    format_reviewer_result,
+    wait_for_pr_feedback,
+)
 from orchestra_cli.workflow import default_after_create, write_workflow
 
 
@@ -91,6 +99,12 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
     )
     add_pr_feedback_wait_parser(github_pr_feedback_subcommands)
+    github_reviewers_parser = github_subcommands.add_parser("reviewers", help="GitHub PR reviewer helpers.")
+    github_reviewers_subcommands = github_reviewers_parser.add_subparsers(
+        dest="github_reviewers_command",
+        required=True,
+    )
+    add_reviewers_ensure_parser(github_reviewers_subcommands)
 
     pr_feedback_parser = subcommands.add_parser(
         "pr-feedback",
@@ -128,6 +142,23 @@ def add_pr_feedback_wait_parser(subcommands: argparse._SubParsersAction) -> None
     )
     wait_parser.add_argument("--format", choices=["markdown", "json"], default="markdown")
     wait_parser.set_defaults(func=cmd_pr_feedback_wait)
+
+
+def add_reviewers_ensure_parser(subcommands: argparse._SubParsersAction) -> None:
+    ensure_parser = subcommands.add_parser(
+        "ensure",
+        help="Request GitHub PR reviewers and print a normalized summary.",
+    )
+    ensure_parser.add_argument("--pr", help="PR number or URL. Defaults to the PR for the current branch.")
+    ensure_parser.add_argument("--repo", help="GitHub repo in owner/name form. Inferred from the PR URL when omitted.")
+    ensure_parser.add_argument(
+        "--reviewer",
+        action="append",
+        default=[],
+        help="Reviewer login to request. Repeat for multiple reviewers.",
+    )
+    ensure_parser.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    ensure_parser.set_defaults(func=cmd_reviewers_ensure)
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -325,6 +356,23 @@ def cmd_pr_feedback_wait(args: argparse.Namespace) -> int:
         return 0
     except PrFeedbackError as error:
         print(f"PR feedback wait failed: {error}", file=sys.stderr)
+        return 1
+
+
+def cmd_reviewers_ensure(args: argparse.Namespace) -> int:
+    try:
+        result = ensure_pr_reviewers(
+            ReviewerOptions(
+                pr=args.pr,
+                repo=args.repo,
+                reviewers=args.reviewer,
+                output_format=args.format,
+            )
+        )
+        print(format_reviewer_result(result, args.format))
+        return 0
+    except PrFeedbackError as error:
+        print(f"Reviewer ensure failed: {error}", file=sys.stderr)
         return 1
 
 

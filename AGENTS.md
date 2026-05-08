@@ -27,8 +27,9 @@ not the source of truth.
   `docs/decisions/0004-dev-complete-is-linear-handoff.md`.
 - Preserve the GitHub PR delivery contract: branch names use only
   `feature/`, `bugfix/`, or `hotfix/`; required reviewers are `vector-hb` and
-  `nathaniel-hb`; Gemini/GitHub review feedback must be handled before Linear
-  handoff. See `docs/decisions/0005-standardize-github-pr-delivery.md`.
+  `nathaniel-hb`; agents must use `orchestra github reviewers ensure`; Gemini
+  and GitHub review feedback must be handled before Linear handoff. See
+  `docs/decisions/0005-standardize-github-pr-delivery.md`.
 - Keep PR feedback judgment with the builder agent. The helper
   `orchestra github pr-feedback wait` may wait and collect feedback, but must
   not decide validity, modify code, resolve comments, or move Linear; see
