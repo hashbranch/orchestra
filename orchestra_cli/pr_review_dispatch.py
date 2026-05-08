@@ -94,7 +94,11 @@ def dispatch_pr_review(options: PrReviewDispatchOptions) -> dict[str, Any]:
 
 
 def read_event_payload(event_file: str) -> dict[str, Any]:
-    raw = sys.stdin.read() if event_file == "-" else Path(event_file).read_text(encoding="utf-8")
+    try:
+        raw = sys.stdin.read() if event_file == "-" else Path(event_file).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise PrReviewDispatchError(f"Could not read GitHub event payload {event_file!r}: {error}") from error
+
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError as error:
@@ -126,6 +130,7 @@ def normalize_review_request(
         "head_ref": options.head_ref,
         "head_sha": options.head_sha,
         "requested_reviewer": options.requested_reviewer,
+        "review_targets": [options.requested_reviewer] if options.requested_reviewer else [],
         "is_draft": False,
     }
 
@@ -136,6 +141,11 @@ def normalize_github_event(payload: dict[str, Any]) -> dict[str, Any]:
     requested_reviewer = login_at(payload.get("requested_reviewer"))
     requested_team = slug_or_name_at(payload.get("requested_team"))
     review_target = requested_reviewer or (f"team/{requested_team}" if requested_team else None)
+    current_targets = review_targets_from_pull_request(pull)
+    review_targets = [review_target] if review_target else []
+    for target in current_targets:
+        if target not in review_targets:
+            review_targets.append(target)
 
     return {
         "source": "github_webhook",
@@ -149,6 +159,7 @@ def normalize_github_event(payload: dict[str, Any]) -> dict[str, Any]:
         "head_ref": string_at(object_at(pull, "head").get("ref")),
         "head_sha": string_at(object_at(pull, "head").get("sha")),
         "requested_reviewer": review_target,
+        "review_targets": review_targets,
         "is_draft": bool(pull.get("draft")),
     }
 
@@ -164,16 +175,30 @@ def skip_reason_for_request(request: dict[str, Any], match_reviewers: list[str])
     if request.get("is_draft"):
         return "ignored draft pull request"
 
-    if match_reviewers and not review_target_matches(request.get("requested_reviewer"), match_reviewers):
+    if match_reviewers and not review_target_matches(request.get("review_targets"), match_reviewers):
         return "requested reviewer did not match dispatch allowlist"
 
     return None
 
 
 def review_target_matches(target: Any, match_reviewers: list[str]) -> bool:
-    target_aliases = reviewer_aliases(str(target or ""))
+    targets = target if isinstance(target, list) else [target]
+    target_aliases = {alias for entry in targets for alias in reviewer_aliases(str(entry or ""))}
     allowed_aliases = {alias for reviewer in match_reviewers for alias in reviewer_aliases(reviewer)}
     return bool(target_aliases & allowed_aliases)
+
+
+def review_targets_from_pull_request(pull: dict[str, Any]) -> list[str]:
+    targets: list[str] = []
+    for reviewer in list_at(pull.get("requested_reviewers")):
+        login = login_at(reviewer)
+        if login:
+            targets.append(login)
+    for team in list_at(pull.get("requested_teams")):
+        slug_or_name = slug_or_name_at(team)
+        if slug_or_name:
+            targets.append(f"team/{slug_or_name}")
+    return targets
 
 
 def reviewer_aliases(value: str) -> set[str]:
@@ -290,3 +315,7 @@ def slug_or_name_at(value: Any) -> str | None:
     if not isinstance(value, dict):
         return None
     return string_at(value.get("slug")) or string_at(value.get("name"))
+
+
+def list_at(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []

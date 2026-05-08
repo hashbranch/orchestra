@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest import mock
 
 from orchestra_cli.main import main
-from orchestra_cli.pr_review_dispatch import PrReviewDispatchOptions, dispatch_pr_review
+from orchestra_cli.pr_review_dispatch import PrReviewDispatchError, PrReviewDispatchOptions, dispatch_pr_review
 
 
 def review_requested_payload(reviewer="clawd-reviewer"):
@@ -87,6 +87,64 @@ class PrReviewDispatchTests(unittest.TestCase):
         self.assertIn("allowlist", result["reason"])
         run.assert_not_called()
 
+    def test_ready_for_review_matches_current_requested_reviewers(self):
+        payload = review_requested_payload()
+        payload["action"] = "ready_for_review"
+        payload.pop("requested_reviewer")
+        payload["pull_request"]["requested_reviewers"] = [{"login": "clawd-reviewer"}]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            payload_path = Path(tmp) / "event.json"
+            payload_path.write_text(json.dumps(payload), encoding="utf-8")
+
+            result = dispatch_pr_review(
+                PrReviewDispatchOptions(
+                    event_file=str(payload_path),
+                    match_reviewers=["clawd-reviewer"],
+                    dry_run=True,
+                )
+            )
+
+        self.assertEqual(result["status"], "planned")
+        self.assertEqual(result["request"]["review_targets"], ["clawd-reviewer"])
+
+    def test_ready_for_review_matches_current_requested_teams(self):
+        payload = review_requested_payload()
+        payload["action"] = "ready_for_review"
+        payload.pop("requested_reviewer")
+        payload["pull_request"]["requested_teams"] = [{"slug": "openclaw-agents"}]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            payload_path = Path(tmp) / "event.json"
+            payload_path.write_text(json.dumps(payload), encoding="utf-8")
+
+            result = dispatch_pr_review(
+                PrReviewDispatchOptions(
+                    event_file=str(payload_path),
+                    match_reviewers=["team/openclaw-agents"],
+                    dry_run=True,
+                )
+            )
+
+        self.assertEqual(result["status"], "planned")
+        self.assertEqual(result["request"]["review_targets"], ["team/openclaw-agents"])
+
+    def test_unreadable_event_file_returns_dispatch_error(self):
+        with self.assertRaises(PrReviewDispatchError) as caught:
+            dispatch_pr_review(PrReviewDispatchOptions(event_file="/no/such/github-event.json"))
+
+        self.assertIn("Could not read GitHub event payload", str(caught.exception))
+
+    def test_invalid_event_file_encoding_returns_dispatch_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            payload_path = Path(tmp) / "event.json"
+            payload_path.write_bytes(b"\xff")
+
+            with self.assertRaises(PrReviewDispatchError) as caught:
+                dispatch_pr_review(PrReviewDispatchOptions(event_file=str(payload_path)))
+
+        self.assertIn("Could not read GitHub event payload", str(caught.exception))
+
     def test_cli_pr_review_dispatch_outputs_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
@@ -108,13 +166,13 @@ class PrReviewDispatchTests(unittest.TestCase):
                     ]
                 )
 
-        self.assertEqual(exit_code, 0)
-        run.assert_not_called()
-        output = "".join(call.args[0] for call in stdout.write.call_args_list if call.args)
-        self.assertEqual(json.loads(output)["request"]["pull_number"], 42)
-        trace = json.loads((home / "traces" / "unknown" / "events.jsonl").read_text(encoding="utf-8"))
-        self.assertEqual(trace["kind"], "github.pr_review.dispatch.planned")
-        self.assertEqual(trace["payload"]["request"]["pull_number"], 42)
+            self.assertEqual(exit_code, 0)
+            run.assert_not_called()
+            output = "".join(call.args[0] for call in stdout.write.call_args_list if call.args)
+            self.assertEqual(json.loads(output)["request"]["pull_number"], 42)
+            trace = json.loads((home / "traces" / "unknown" / "events.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(trace["kind"], "github.pr_review.dispatch.planned")
+            self.assertEqual(trace["payload"]["request"]["pull_number"], 42)
 
 
 if __name__ == "__main__":
