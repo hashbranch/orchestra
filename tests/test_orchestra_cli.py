@@ -64,6 +64,7 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertEqual(config["codex_thread_sandbox"], "danger-full-access")
             self.assertEqual(config["codex_turn_sandbox_policy"], {"type": "dangerFullAccess"})
             self.assertTrue((home / "workspaces").is_dir())
+            self.assertTrue((home / "traces").is_dir())
 
             workflow = (home / "WORKFLOW.md").read_text(encoding="utf-8")
             self.assertIn("project_slug: \"symphony-test\"", workflow)
@@ -90,6 +91,8 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertNotIn("Human Review", workflow)
             self.assertIn("Never move the Linear issue to any terminal state", workflow)
             self.assertIn("The only successful handoff state is `Dev Complete`", workflow)
+            self.assertIn("orchestra trace event --issue {{ issue.identifier }} --kind completion_decision", workflow)
+            self.assertIn("feedback_items_reviewed", workflow)
             self.assertIn("After moving the Linear issue to `Dev Complete`, stop work", workflow)
             self.assertIn("Respect Linear dependency ordering", workflow)
 

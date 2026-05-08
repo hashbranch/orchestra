@@ -38,6 +38,10 @@ not the source of truth.
   `orchestra github ...`, `orchestra linear ...`, `orchestra git ...`, or
   `orchestra validation ...`; see
   `docs/decisions/0007-provider-scoped-helper-commands.md`.
+- Capture workflow debugging evidence as structured trace events and explicit
+  agent decision notes, not hidden reasoning. Use `orchestra trace event` for
+  auditable handoff decisions; see
+  `docs/decisions/0008-auditable-workflow-traces.md`.
 
 ## Agent Skills
 

@@ -26,6 +26,10 @@ def workspaces_path(home: Path) -> Path:
     return home / "workspaces"
 
 
+def traces_path(home: Path) -> Path:
+    return home / "traces"
+
+
 def symphony_path(home: Path) -> Path:
     return home / "symphony"
 

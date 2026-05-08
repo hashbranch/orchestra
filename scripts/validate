@@ -18,6 +18,7 @@ python3 -m orchestra_cli.main --home /tmp/orchestra-validate show workflow >/dev
 python3 -m orchestra_cli.main github pr-feedback wait --help >/dev/null
 python3 -m orchestra_cli.main github reviewers ensure --help >/dev/null
 python3 -m orchestra_cli.main pr-feedback wait --help >/dev/null
+python3 -m orchestra_cli.main trace event --help >/dev/null
 python3 -m orchestra_cli --help >/dev/null
 sh -n scripts/install
 test -x scripts/install-orchestra

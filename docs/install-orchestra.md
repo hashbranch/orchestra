@@ -78,6 +78,7 @@ This creates:
 ~/.orchestra/config.json
 ~/.orchestra/WORKFLOW.md
 ~/.orchestra/source/
+~/.orchestra/traces/
 ~/.orchestra/workspaces/
 ```
 
@@ -107,6 +108,21 @@ the agent still owns judging and fixing the feedback:
 
 ```bash
 orchestra github pr-feedback wait --wait-seconds 300 --poll-seconds 15 --format markdown
+```
+
+GitHub helpers automatically append structured trace events under
+`~/.orchestra/traces/<issue>/events.jsonl` when they can infer the Linear issue
+identifier from the PR title. Generated workflows also require agents to write
+an explicit completion decision trace before moving Linear to the complete
+state:
+
+```bash
+orchestra trace event \
+  --issue CLA-150 \
+  --kind completion_decision \
+  --message "PR is ready for Dev Complete after reviewer assignment, feedback handling, and validation." \
+  --field pr_url=https://github.com/hashbranch/tera/pull/51 \
+  --field validation=passed
 ```
 
 The Linear state names are configurable at init. Orchestra uses the ready state

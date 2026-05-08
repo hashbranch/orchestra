@@ -16,6 +16,7 @@ from orchestra_cli.paths import (
     default_home,
     symphony_elixir_path,
     symphony_path,
+    traces_path,
     workflow_path,
     workspaces_path,
 )
@@ -27,6 +28,14 @@ from orchestra_cli.pr_feedback import (
     format_feedback,
     format_reviewer_result,
     wait_for_pr_feedback,
+)
+from orchestra_cli.trace import (
+    TraceError,
+    format_trace_event,
+    infer_issue_identifier,
+    parse_fields,
+    parse_payload_json,
+    write_trace_event,
 )
 from orchestra_cli.workflow import default_after_create, write_workflow
 
@@ -112,6 +121,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     pr_feedback_subcommands = pr_feedback_parser.add_subparsers(dest="pr_feedback_command", required=True)
     add_pr_feedback_wait_parser(pr_feedback_subcommands)
+
+    trace_parser = subcommands.add_parser("trace", help="Write or inspect Orchestra trace events.")
+    trace_subcommands = trace_parser.add_subparsers(dest="trace_command", required=True)
+    trace_event_parser = trace_subcommands.add_parser("event", help="Append a structured trace event.")
+    trace_event_parser.add_argument("--issue", help="Issue identifier such as CLA-150.")
+    trace_event_parser.add_argument("--kind", required=True, help="Event kind, such as completion_decision.")
+    trace_event_parser.add_argument("--source", default="agent", help="Event source.")
+    trace_event_parser.add_argument("--message", help="Human-readable decision note.")
+    trace_event_parser.add_argument("--field", action="append", default=[], help="Payload field as key=value. Repeatable.")
+    trace_event_parser.add_argument("--payload-json", help="Additional JSON object payload.")
+    trace_event_parser.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    trace_event_parser.set_defaults(func=cmd_trace_event)
 
     set_key_parser = subcommands.add_parser("set-linear-key", help="Store or update the Linear API key in config.")
     set_key_parser.add_argument("--linear-api-key", help="Linear API key. Omit to prompt securely.")
@@ -222,6 +243,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     home.mkdir(parents=True, exist_ok=True)
     workspaces_path(home).mkdir(parents=True, exist_ok=True)
+    traces_path(home).mkdir(parents=True, exist_ok=True)
     cfg_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_workflow(wf_path, config)
 
@@ -273,6 +295,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         check_path("config", config_path(home), must_exist=True),
         check_path("workflow", workflow_path(home), must_exist=True),
         check_path("workspaces", workspaces_path(home), must_exist=True),
+        check_path("traces", traces_path(home), must_exist=True),
         check_executable("git"),
         check_executable("gh"),
         check_executable("codex"),
@@ -352,6 +375,7 @@ def cmd_pr_feedback_wait(args: argparse.Namespace) -> int:
                 output_format=args.format,
             )
         )
+        trace_helper_event(args.home.expanduser(), snapshot, "github.pr_feedback.wait.completed")
         print(format_feedback(snapshot, args.format))
         return 0
     except PrFeedbackError as error:
@@ -369,11 +393,50 @@ def cmd_reviewers_ensure(args: argparse.Namespace) -> int:
                 output_format=args.format,
             )
         )
+        trace_helper_event(args.home.expanduser(), result, "github.reviewers.ensure.completed")
         print(format_reviewer_result(result, args.format))
         return 0
     except PrFeedbackError as error:
         print(f"Reviewer ensure failed: {error}", file=sys.stderr)
         return 1
+
+
+def cmd_trace_event(args: argparse.Namespace) -> int:
+    home = args.home.expanduser()
+    try:
+        payload = parse_payload_json(args.payload_json)
+        payload.update(parse_fields(args.field))
+        event, path = write_trace_event(
+            home,
+            issue=args.issue,
+            kind=args.kind,
+            source=args.source,
+            message=args.message,
+            payload=payload,
+            cwd=os.getcwd(),
+        )
+        print(format_trace_event(event, path, args.format))
+        return 0
+    except TraceError as error:
+        print(f"Trace event failed: {error}", file=sys.stderr)
+        return 1
+
+
+def trace_helper_event(home: Path, result: dict[str, Any], kind: str) -> None:
+    pr = result.get("pr") or {}
+    issue = infer_issue_identifier(str(pr.get("title") or ""), str(pr.get("url") or ""))
+    try:
+        write_trace_event(
+            home,
+            issue=issue,
+            kind=kind,
+            source="orchestra",
+            message=str(result.get("summary") or kind),
+            payload=result,
+            cwd=os.getcwd(),
+        )
+    except OSError as error:
+        print(f"Warning: could not write trace event: {error}", file=sys.stderr)
 
 
 def cmd_set_linear_key(args: argparse.Namespace) -> int:
@@ -402,6 +465,7 @@ def paths_payload(home: Path) -> dict[str, str]:
         "config": str(config_path(home)),
         "workflow": str(workflow_path(home)),
         "workspaces": str(workspaces_path(home)),
+        "traces": str(traces_path(home)),
         "symphony": str(symphony_path(home)),
         "symphony_elixir": str(symphony_elixir_path(home)),
     }

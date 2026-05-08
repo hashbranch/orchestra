@@ -120,6 +120,7 @@ GitHub delivery requirements:
 - If you push follow-up commits after review feedback, run `orchestra github pr-feedback wait --wait-seconds 300 --poll-seconds 15 --format markdown` again before claiming completion.
 - Do not claim completion while valid review feedback remains unaddressed.
 - Never move the Linear issue to any terminal state, including `Done`, `Closed`, `Cancelled`, `Canceled`, or `Duplicate`. The only successful handoff state is `{states["complete"]}`.
+- Before moving Linear to `{states["complete"]}`, write an auditable completion decision trace event with `orchestra trace event --issue {{{{ issue.identifier }}}} --kind completion_decision --message "<why this is ready for handoff>"` and include fields for `pr_url`, `branch`, `reviewers_requested`, `feedback_items_reviewed`, `validation`, and `handoff_state`.
 - When the PR exists, validation is complete, required reviewers are assigned, and review feedback has been handled, move the Linear issue to `{states["complete"]}`.
 - After moving the Linear issue to `{states["complete"]}`, stop work on that issue and do not advance it again.
 - If you cannot push or create a PR, move the issue to `{states["blocked"]}` if that state exists; otherwise leave it in `{states["working"]}` and document the blocker.
