@@ -11,6 +11,8 @@ as a later add-on.
 - OpenClaw agent wrapper exists and is tested.
 - `orchestra` CLI can initialize config, generate `WORKFLOW.md`, clone Symphony,
   check prerequisites, and run Symphony.
+- `orchestra github pr-review dispatch` can send PR review requests to an
+  OpenClaw agent through the CLI/Tailscale SSH boundary.
 - JSON schemas and sample payloads are local.
 - Architecture, decisions, and validation commands are now repo-local.
 - Symphony implementation remains outside this folder.
@@ -36,6 +38,7 @@ as a later add-on.
 - [x] Patch local Symphony checkout with `ask_openclaw_agent` dynamic tool support.
 - [x] Add OpenClaw agent host install and smoke-test scripts.
 - [x] Add installable `orchestra` CLI.
+- [x] Add GitHub PR review dispatch helper.
 - [x] Test console scripts in a temporary virtualenv.
 - [ ] Implement Symphony dynamic tool in the real Symphony codebase.
 - [ ] Run `orchestra install-symphony` on a machine with `mise` or `mix`.

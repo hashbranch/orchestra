@@ -6,6 +6,8 @@ This repository has two related surfaces:
 
 - `orchestra`: a CLI that installs and runs local OpenAI Symphony instances.
 - `symphony-ask-openclaw-agent`: the future OpenClaw agent advisory wrapper.
+- `orchestra github pr-review dispatch`: a GitHub helper that turns PR review
+  requests into OpenClaw agent review turns.
 
 The OpenClaw agent wrapper implements the V1 boundary between Symphony and OpenClaw agents:
 
@@ -76,4 +78,6 @@ validation or setup step becomes important enough to repeat.
 - Symphony dynamic tool implementation: see `docs/symphony-integration-design.md`.
 - Additional OpenClaw participants: add a participant registry after OpenClaw Agents V1 is
   proven.
+- GitHub webhook receiver: future deployment code can verify GitHub signatures
+  and invoke `orchestra github pr-review dispatch --event-file ...`.
 - HTTP bridge: future V2 only; do not expose a public gateway in V1.

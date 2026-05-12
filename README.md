@@ -22,6 +22,7 @@ repo, but it is not required for the first install path.
 - Integration design note: `docs/symphony-integration-design.md`
 - Try-it-out runbook: `docs/try-it-out.md`
 - Unit tests for the wrapper behavior
+- GitHub PR review dispatch helper: `orchestra github pr-review dispatch`
 
 ## Local Test
 
@@ -126,6 +127,38 @@ The wrapper accepts optional overrides:
 OPENCLAW_BIN=/path/to/openclaw OPENCLAW_AGENT=main OPENCLAW_TIMEOUT_SECONDS=180 \
   bin/symphony-ask-openclaw-agent < samples/sample-request.json
 ```
+
+## Dispatch PR Review Requests To OpenClaw
+
+Orchestra can normalize a GitHub pull request review event and ask an OpenClaw
+agent to review the PR. V1 keeps the OpenClaw side behind the CLI/Tailscale SSH
+boundary rather than exposing an agent HTTP endpoint.
+
+Explicit dispatch:
+
+```bash
+orchestra github pr-review dispatch \
+  --repo hashbranch/example \
+  --pr 42 \
+  --url https://github.com/hashbranch/example/pull/42 \
+  --openclaw-host clawd-openclaw \
+  --agent main \
+  --deliver \
+  --reply-channel slack \
+  --reply-to D0ACBEMKLBW
+```
+
+GitHub webhook payload dispatch:
+
+```bash
+orchestra github pr-review dispatch \
+  --event-file /path/to/pull_request.json \
+  --match-reviewer clawd-reviewer \
+  --openclaw-host clawd-openclaw
+```
+
+Use `--dry-run` to inspect the normalized request and command without contacting
+OpenClaw.
 
 ## Install On An OpenClaw Agent Host
 

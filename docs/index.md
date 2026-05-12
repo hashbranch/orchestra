@@ -9,6 +9,8 @@ This directory is the agent-readable knowledge base for the repository.
 - `decisions/`: architectural decisions and their consequences.
   - `decisions/0003-honor-linear-blockers-before-dispatch.md`: why Orchestra
     blocks dispatch when Linear dependencies are unresolved.
+  - `decisions/0008-github-pr-review-dispatch-uses-openclaw-cli.md`: how GitHub
+    PR review requests reach OpenClaw agents in V1.
 - `plans/`: active and completed execution plans.
 - `tech-debt-tracker.md`: known cleanup and hardening work.
 - `quality.md`: current quality bar and verification gaps.
