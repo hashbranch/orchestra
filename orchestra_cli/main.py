@@ -673,26 +673,35 @@ def check_update_status(home: Path) -> dict[str, Any]:
             "reason": f"source checkout not found at {source}; install with the public curl command first",
         }
 
-    fetch = subprocess.run(["git", "-C", str(source), "fetch", "origin", "main"], capture_output=True, text=True)
+    install_ref = git_output(source, ["config", "--get", "orchestra.installRef"]) or "main"
+    fetch = subprocess.run(["git", "-C", str(source), "fetch", "origin", "--tags"], capture_output=True, text=True)
     if fetch.returncode != 0:
         return {"ok": False, "reason": fetch.stderr.strip() or "git fetch failed"}
 
     current = git_output(source, ["rev-parse", "HEAD"])
-    latest = git_output(source, ["rev-parse", "origin/main"])
-    if current is None or latest is None:
-        return {"ok": False, "reason": "could not resolve local or remote revision"}
+    target = resolve_update_target(source, install_ref)
+    if current is None or target is None:
+        return {"ok": False, "reason": f"could not resolve update target for {install_ref}"}
 
-    if current == latest:
-        return {"ok": True, "available": False, "current": current[:7], "latest": latest[:7]}
+    current_label = current_version_label(source, current)
+    latest = target["revision"]
+    latest_label = target["label"]
 
     if git_is_ancestor(source, current, latest):
-        return {"ok": True, "available": True, "current": current[:7], "latest": latest[:7]}
+        return {
+            "ok": True,
+            "available": current != latest,
+            "current": current_label,
+            "latest": latest_label,
+            "track": install_ref,
+        }
 
     return {
         "ok": False,
-        "reason": f"source checkout at {source} has diverged from origin/main",
-        "current": current[:7],
-        "latest": latest[:7],
+        "reason": f"source checkout at {source} has diverged from {latest_label}",
+        "current": current_label,
+        "latest": latest_label,
+        "track": install_ref,
     }
 
 
@@ -702,13 +711,29 @@ def apply_update(home: Path, skip_install: bool = False) -> int:
         print(f"Source checkout not found at {source}. Reinstall with the public curl command.", file=sys.stderr)
         return 1
 
-    commands = [
-        ["git", "-C", str(source), "checkout", "main"],
-        ["git", "-C", str(source), "pull", "--ff-only", "origin", "main"],
-    ]
+    install_ref = git_output(source, ["config", "--get", "orchestra.installRef"]) or "main"
+    fetch = subprocess.run(["git", "-C", str(source), "fetch", "origin", "--tags"], capture_output=True, text=True)
+    if fetch.returncode != 0:
+        print(fetch.stderr.strip() or fetch.stdout.strip() or "git fetch failed", file=sys.stderr)
+        return fetch.returncode
+
+    target = resolve_update_target(source, install_ref)
+    if target is None:
+        print(f"Could not resolve update target for {install_ref}.", file=sys.stderr)
+        return 1
+
+    if target["kind"] == "branch":
+        commands = [
+            ["git", "-C", str(source), "checkout", target["name"]],
+            ["git", "-C", str(source), "pull", "--ff-only", "origin", target["name"]],
+        ]
+    else:
+        commands = [["git", "-C", str(source), "checkout", target["name"]]]
+
     for command in commands:
-        completed = subprocess.run(command)
+        completed = subprocess.run(command, capture_output=True, text=True)
         if completed.returncode != 0:
+            print(completed.stderr.strip() or completed.stdout.strip() or "update command failed", file=sys.stderr)
             return completed.returncode
 
     if skip_install:
@@ -718,6 +743,43 @@ def apply_update(home: Path, skip_install: bool = False) -> int:
     installer = source / "scripts" / "install-orchestra"
     completed = subprocess.run([str(installer)])
     return completed.returncode
+
+
+def resolve_update_target(source: Path, install_ref: str) -> dict[str, str] | None:
+    if install_ref == "latest":
+        latest_tag = latest_release_tag(source)
+        if latest_tag:
+            revision = git_output(source, ["rev-parse", latest_tag])
+            if revision:
+                return {"kind": "tag", "name": latest_tag, "label": latest_tag, "revision": revision}
+        install_ref = "main"
+
+    tag_revision = git_output(source, ["rev-parse", f"refs/tags/{install_ref}"])
+    if tag_revision:
+        return {"kind": "tag", "name": install_ref, "label": install_ref, "revision": tag_revision}
+
+    branch_revision = git_output(source, ["rev-parse", f"origin/{install_ref}"])
+    if branch_revision:
+        return {
+            "kind": "branch",
+            "name": install_ref,
+            "label": f"origin/{install_ref}",
+            "revision": branch_revision,
+        }
+
+    return None
+
+
+def latest_release_tag(source: Path) -> str | None:
+    output = git_output(source, ["tag", "--list", "v*", "--sort=-v:refname"])
+    if not output:
+        return None
+    return output.splitlines()[0]
+
+
+def current_version_label(source: Path, revision: str) -> str:
+    tag = git_output(source, ["describe", "--tags", "--exact-match", revision])
+    return tag or revision[:7]
 
 
 def refresh_workflow_if_configured(home: Path) -> None:

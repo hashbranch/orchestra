@@ -4,6 +4,7 @@ set -eu
 repo_url="${ORCHESTRA_REPO_URL:-https://github.com/hashbranch/orchestra.git}"
 install_dir="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"
 home_dir="${ORCHESTRA_HOME:-$HOME/.orchestra}"
+install_ref="${ORCHESTRA_VERSION:-latest}"
 python_bin="${PYTHON:-python3}"
 
 need() {
@@ -20,12 +21,11 @@ printf 'Installing Orchestra\n'
 printf '  Repo: %s\n' "$repo_url"
 printf '  Source: %s\n' "$install_dir"
 printf '  Home: %s\n' "$home_dir"
+printf '  Version: %s\n' "$install_ref"
 
 if [ -d "$install_dir/.git" ]; then
   printf 'Updating existing checkout...\n'
-  git -C "$install_dir" fetch origin
-  git -C "$install_dir" checkout main
-  git -C "$install_dir" pull --ff-only origin main
+  git -C "$install_dir" fetch origin --tags
 elif [ -e "$install_dir" ]; then
   printf 'Install path exists but is not a Git checkout: %s\n' "$install_dir" >&2
   printf 'Set ORCHESTRA_INSTALL_DIR to another path or move the existing directory.\n' >&2
@@ -34,6 +34,24 @@ else
   mkdir -p "$(dirname "$install_dir")"
   git clone "$repo_url" "$install_dir"
 fi
+
+resolved_ref="$install_ref"
+if [ "$install_ref" = "latest" ]; then
+  resolved_ref="$(git -C "$install_dir" tag --list 'v*' --sort=-v:refname | sed -n '1p')"
+  if [ -z "$resolved_ref" ]; then
+    resolved_ref="main"
+  fi
+fi
+
+if git -C "$install_dir" rev-parse --verify "refs/tags/$resolved_ref" >/dev/null 2>&1; then
+  git -C "$install_dir" checkout "$resolved_ref"
+else
+  git -C "$install_dir" checkout "$resolved_ref"
+  git -C "$install_dir" pull --ff-only origin "$resolved_ref"
+fi
+
+git -C "$install_dir" config orchestra.installRef "$install_ref"
+git -C "$install_dir" config orchestra.resolvedRef "$resolved_ref"
 
 cd "$install_dir"
 PYTHON="$python_bin" scripts/install-orchestra

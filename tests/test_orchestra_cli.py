@@ -1,11 +1,20 @@
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from orchestra_cli.main import ensure_elixir_toolchain, ensure_runner_blocker_patch, main, redacted_config, run_env
+from orchestra_cli.main import (
+    apply_update,
+    check_update_status,
+    ensure_elixir_toolchain,
+    ensure_runner_blocker_patch,
+    main,
+    redacted_config,
+    run_env,
+)
 from orchestra_cli.paths import upstream_elixir_app_dir
 from orchestra_cli.workflow import workflow_text
 
@@ -351,6 +360,58 @@ class OrchestraCliTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
 
+    def test_update_status_tracks_latest_release_tag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            remote = root / "remote.git"
+            work = root / "work"
+            home = root / "home"
+            source = home / "source"
+
+            subprocess.run(
+                ["git", "init", "--bare", "--initial-branch=main", str(remote)],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(["git", "init", "-b", "main", str(work)], check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=work, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=work, check=True)
+            (work / "README.md").write_text("one\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=work, check=True)
+            subprocess.run(["git", "commit", "-m", "one"], cwd=work, check=True, capture_output=True)
+            subprocess.run(["git", "tag", "v0.1.0"], cwd=work, check=True)
+            subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=work, check=True)
+            subprocess.run(["git", "push", "-u", "origin", "main", "--tags"], cwd=work, check=True, capture_output=True)
+
+            subprocess.run(["git", "clone", str(remote), str(source)], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(source), "checkout", "v0.1.0"], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(source), "config", "orchestra.installRef", "latest"], check=True)
+
+            (work / "README.md").write_text("two\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=work, check=True)
+            subprocess.run(["git", "commit", "-m", "two"], cwd=work, check=True, capture_output=True)
+            subprocess.run(["git", "tag", "v0.2.0"], cwd=work, check=True)
+            subprocess.run(["git", "push", "origin", "main", "--tags"], cwd=work, check=True, capture_output=True)
+
+            status = check_update_status(home)
+
+            self.assertTrue(status["ok"])
+            self.assertTrue(status["available"])
+            self.assertEqual(status["current"], "v0.1.0")
+            self.assertEqual(status["latest"], "v0.2.0")
+            self.assertEqual(status["track"], "latest")
+
+            self.assertEqual(apply_update(home, skip_install=True), 0)
+            self.assertEqual(
+                subprocess.run(
+                    ["git", "-C", str(source), "describe", "--tags", "--exact-match"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout.strip(),
+                "v0.2.0",
+            )
+
     def test_up_can_skip_update_check_and_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp) / "orchestra"
@@ -426,8 +487,6 @@ class OrchestraCliTests(unittest.TestCase):
             (source / "README.md").write_text("source\n", encoding="utf-8")
             (source / "elixir" / "README.md").write_text("elixir\n", encoding="utf-8")
             orchestrator.write_text(ORCHESTRATOR_WITH_TODO_BLOCKER, encoding="utf-8")
-
-            import subprocess
 
             subprocess.run(["git", "init", "-b", "main"], cwd=source, check=True, capture_output=True)
             subprocess.run(["git", "config", "user.name", "Test User"], cwd=source, check=True)

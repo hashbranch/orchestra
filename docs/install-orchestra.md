@@ -27,6 +27,14 @@ is computed from your active Python install, not hardcoded. Open a new terminal
 after install, or run the `export PATH=...` line printed by the installer for
 the current terminal.
 
+By default the installer tracks the latest `v*` release tag. If no release tag
+exists yet, it falls back to `main`. To pin a version or dogfood `main`:
+
+```bash
+ORCHESTRA_VERSION=v0.2.0 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+ORCHESTRA_VERSION=main curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+```
+
 Authenticated/private fallback:
 
 ```bash
@@ -166,9 +174,9 @@ orchestra doctor
 orchestra up
 ```
 
-`orchestra up` checks whether the installed Orchestra CLI has a newer version
-available, offers to apply it, regenerates `WORKFLOW.md` from config after a
-successful update, then starts the local runner.
+`orchestra up` checks whether the installed Orchestra release channel has a
+newer version available, offers to apply it, regenerates `WORKFLOW.md` from
+config after a successful update, then starts the local runner.
 
 Use `orchestra run` when you want to skip the update check.
 
