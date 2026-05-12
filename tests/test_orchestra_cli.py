@@ -5,11 +5,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from orchestra_cli.main import ensure_elixir_toolchain, ensure_symphony_blocker_patch, main, redacted_config, run_env
+from orchestra_cli.main import ensure_elixir_toolchain, ensure_runner_blocker_patch, main, redacted_config, run_env
+from orchestra_cli.paths import upstream_elixir_app_dir
 from orchestra_cli.workflow import workflow_text
 
 
-ORCHESTRATOR_WITH_TODO_BLOCKER = """defmodule SymphonyElixir.Orchestrator do
+ORCHESTRATOR_WITH_TODO_BLOCKER = """defmodule OrchestraRunner.Orchestrator do
   defp should_dispatch_issue?(issue, terminal_states) do
     !todo_issue_blocked_by_non_terminal?(issue, terminal_states)
   end
@@ -45,7 +46,7 @@ class OrchestraCliTests(unittest.TestCase):
                     str(home),
                     "init",
                     "--linear-project-slug",
-                    "symphony-test",
+                    "orchestra-test",
                     "--target-repo",
                     "git@github.com:example/repo.git",
                     "--codex-command",
@@ -56,7 +57,7 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
 
             config = json.loads((home / "config.json").read_text(encoding="utf-8"))
-            self.assertEqual(config["linear_project_slug"], "symphony-test")
+            self.assertEqual(config["linear_project_slug"], "orchestra-test")
             self.assertEqual(config["target_repo"], "git@github.com:example/repo.git")
             self.assertEqual(config["states"]["ready"], "Todo")
             self.assertEqual(config["states"]["complete"], "Dev Complete")
@@ -67,7 +68,7 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertTrue((home / "traces").is_dir())
 
             workflow = (home / "WORKFLOW.md").read_text(encoding="utf-8")
-            self.assertIn("project_slug: \"symphony-test\"", workflow)
+            self.assertIn("project_slug: \"orchestra-test\"", workflow)
             self.assertIn("api_key: $LINEAR_API_KEY", workflow)
             self.assertNotIn("lin_api", workflow)
             self.assertIn("git clone --depth 1", workflow)
@@ -150,7 +151,7 @@ class OrchestraCliTests(unittest.TestCase):
                 str(home),
                 "init",
                 "--linear-project-slug",
-                "symphony-test",
+                "orchestra-test",
                 "--target-repo",
                 "git@github.com:example/repo.git",
             ]
@@ -252,8 +253,8 @@ class OrchestraCliTests(unittest.TestCase):
     def test_run_handles_keyboard_interrupt_without_traceback(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp) / "orchestra"
-            (home / "symphony" / "elixir").mkdir(parents=True)
-            orchestrator = home / "symphony" / "elixir" / "lib" / "symphony_elixir" / "orchestrator.ex"
+            (home / "runner" / "elixir").mkdir(parents=True)
+            orchestrator = home / "runner" / "elixir" / "lib" / upstream_elixir_app_dir() / "orchestrator.ex"
             orchestrator.parent.mkdir(parents=True)
             orchestrator.write_text(ORCHESTRATOR_WITH_TODO_BLOCKER, encoding="utf-8")
             (home / "WORKFLOW.md").write_text("---\n---\n", encoding="utf-8")
@@ -335,6 +336,33 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertNotIn("lin_api_configured", workflow)
             self.assertIn("Never move the Linear issue to any terminal state", workflow)
 
+    def test_version_subcommand_succeeds(self):
+        self.assertEqual(main(["version"]), 0)
+
+    def test_update_check_returns_zero_when_update_is_available(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "orchestra"
+
+            with mock.patch(
+                "orchestra_cli.main.check_update_status",
+                return_value={"ok": True, "available": True, "current": "abc1234", "latest": "def5678"},
+            ):
+                exit_code = main(["--home", str(home), "update", "--check"])
+
+            self.assertEqual(exit_code, 0)
+
+    def test_up_can_skip_update_check_and_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "orchestra"
+            with mock.patch("orchestra_cli.main.check_update_status") as check_update, mock.patch(
+                "orchestra_cli.main.cmd_run", return_value=0
+            ) as run_command:
+                exit_code = main(["--home", str(home), "up", "--no-update"])
+
+            self.assertEqual(exit_code, 0)
+            check_update.assert_not_called()
+            run_command.assert_called_once()
+
     def test_init_noninteractive_requires_project_and_target_repo_flags(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp) / "orchestra"
@@ -388,12 +416,12 @@ class OrchestraCliTests(unittest.TestCase):
 
         install_mise.assert_not_called()
 
-    def test_install_symphony_skip_build_clones_local_source(self):
+    def test_install_runner_skip_build_clones_local_source(self):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "source"
             home = Path(tmp) / "home"
             (source / "elixir").mkdir(parents=True)
-            orchestrator = source / "elixir" / "lib" / "symphony_elixir" / "orchestrator.ex"
+            orchestrator = source / "elixir" / "lib" / upstream_elixir_app_dir() / "orchestrator.ex"
             orchestrator.parent.mkdir(parents=True)
             (source / "README.md").write_text("source\n", encoding="utf-8")
             (source / "elixir" / "README.md").write_text("elixir\n", encoding="utf-8")
@@ -412,7 +440,7 @@ class OrchestraCliTests(unittest.TestCase):
                     [
                         "--home",
                         str(home),
-                        "install-symphony",
+                        "install-runner",
                         "--source",
                         str(source),
                         "--skip-build",
@@ -420,21 +448,21 @@ class OrchestraCliTests(unittest.TestCase):
                 )
 
             self.assertEqual(exit_code, 0)
-            self.assertTrue((home / "symphony" / "elixir").is_dir())
-            patched = (home / "symphony" / "elixir" / "lib" / "symphony_elixir" / "orchestrator.ex").read_text(
+            self.assertTrue((home / "runner" / "elixir").is_dir())
+            patched = (home / "runner" / "elixir" / "lib" / upstream_elixir_app_dir() / "orchestrator.ex").read_text(
                 encoding="utf-8"
             )
             self.assertIn("issue_blocked_by_non_terminal?", patched)
             self.assertNotIn("todo_issue_blocked_by_non_terminal?", patched)
 
-    def test_symphony_blocker_patch_skips_any_state_with_unresolved_blockers(self):
+    def test_runner_blocker_patch_skips_any_state_with_unresolved_blockers(self):
         with tempfile.TemporaryDirectory() as tmp:
             elixir = Path(tmp) / "elixir"
-            orchestrator = elixir / "lib" / "symphony_elixir" / "orchestrator.ex"
+            orchestrator = elixir / "lib" / upstream_elixir_app_dir() / "orchestrator.ex"
             orchestrator.parent.mkdir(parents=True)
             orchestrator.write_text(ORCHESTRATOR_WITH_TODO_BLOCKER, encoding="utf-8")
 
-            self.assertTrue(ensure_symphony_blocker_patch(elixir))
+            self.assertTrue(ensure_runner_blocker_patch(elixir))
 
             patched = orchestrator.read_text(encoding="utf-8")
             self.assertIn("!issue_blocked_by_non_terminal?(issue, terminal_states)", patched)

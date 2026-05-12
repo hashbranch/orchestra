@@ -1,25 +1,26 @@
 # Orchestra
 
-Orchestra is a small bootstrap CLI for installing and running a local OpenAI
-Symphony instance on another machine. The OpenClaw agents wrapper remains in this
-repo, but it is not required for the first install path.
+Orchestra is a small bootstrap CLI for installing and running a local
+Linear-driven Codex agent harness on another machine. It was inspired by OpenAI
+Symphony and currently uses that upstream runner internally, but the public
+workflow language in this repo is Orchestra.
 
 ## Implemented
 
 - Installable `orchestra` CLI
 - Local config and `WORKFLOW.md` generation
-- Symphony clone/build/run commands
+- Runner clone/build/run commands
 - Local prerequisite checks via `orchestra doctor`
-- OpenClaw-agent-side wrapper executable: `bin/symphony-ask-openclaw-agent`
+- OpenClaw-agent-side wrapper executable: `bin/orchestra-ask-openclaw-agent`
 - Request validation for the V1 schema
 - Prompt contract that keeps OpenClaw agents advisory only
-- OpenClaw invocation with deterministic `symphony-<issue-identifier>` session IDs
+- OpenClaw invocation with deterministic `orchestra-<issue-identifier>` session IDs
 - Response normalization into the V1 JSON response schema
 - Failure wrapping for invalid requests, OpenClaw timeout/failure, and malformed output
 - Sample request payload: `samples/sample-request.json`
-- Symphony-facing tool schema: `schemas/ask_openclaw_agent.tool.schema.json`
+- Orchestra-facing tool schema: `schemas/ask_openclaw_agent.tool.schema.json`
 - Example participant config: `config/openclaw-participants.example.yaml`
-- Integration design note: `docs/symphony-integration-design.md`
+- Integration design note: `docs/orchestra-runner-integration-design.md`
 - Try-it-out runbook: `docs/try-it-out.md`
 - Unit tests for the wrapper behavior
 - GitHub PR review dispatch helper: `orchestra github pr-review dispatch`
@@ -65,20 +66,20 @@ scripts/install-orchestra
 This wraps `pip install --user .` and adds Python's user script directory to your
 shell profile when needed.
 
-Initialize a local Symphony install:
+Initialize a local Orchestra install:
 
 ```bash
 orchestra init
 
 orchestra doctor
-orchestra install-symphony
-orchestra run
+orchestra install-runner
+orchestra up
 ```
 
 `orchestra init` prompts for the Linear API key, Linear project slug, target
 repo URL, and max concurrent agents. The key is stored in `~/.orchestra/config.json` but the generated
 `WORKFLOW.md` always uses `$LINEAR_API_KEY`; `orchestra run` injects the stored
-key into Symphony's environment. You can also pass setup values as flags.
+key into the runner environment. You can also pass setup values as flags.
 
 The target repo is also the GitHub PR destination: Orchestra clones it into each
 issue workspace, so its `origin` remote is where `gh pr create` points.
@@ -91,9 +92,19 @@ Orchestra's generated workflow runs Codex with `danger-full-access`. That is
 required for unattended GitHub delivery because the agent has to write Git
 metadata, reach GitHub, push branches, and open PRs from the local machine.
 
-Orchestra also patches the local Symphony checkout so Linear `blocked by`
+Orchestra also patches the local runner checkout so Linear `blocked by`
 relations are honored before dispatch. Any issue with unresolved non-terminal
 blockers is skipped, even when the issue is otherwise in an active state.
+
+Use `orchestra up` for normal starts. It checks for an Orchestra CLI update,
+offers to apply it, regenerates `WORKFLOW.md` from config when an update is
+applied, then starts the local runner. Use `orchestra run` to skip the update
+check.
+
+```bash
+orchestra update --check
+orchestra update --yes
+```
 
 To update the stored Linear key later:
 
@@ -101,7 +112,7 @@ To update the stored Linear key later:
 orchestra set-linear-key
 ```
 
-`orchestra install-symphony` installs `mise` automatically if no Elixir toolchain
+`orchestra install-runner` installs `mise` automatically if no Elixir toolchain
 is found. Use `--skip-build` when you only want to verify clone layout.
 
 By default Orchestra writes to `~/.orchestra`:
@@ -112,20 +123,20 @@ By default Orchestra writes to `~/.orchestra`:
   config.json
   WORKFLOW.md
   workspaces/
-  symphony/
+  runner/
 ```
 
 To run against a real OpenClaw agent host install:
 
 ```bash
-bin/symphony-ask-openclaw-agent < samples/sample-request.json
+bin/orchestra-ask-openclaw-agent < samples/sample-request.json
 ```
 
 The wrapper accepts optional overrides:
 
 ```bash
 OPENCLAW_BIN=/path/to/openclaw OPENCLAW_AGENT=main OPENCLAW_TIMEOUT_SECONDS=180 \
-  bin/symphony-ask-openclaw-agent < samples/sample-request.json
+  bin/orchestra-ask-openclaw-agent < samples/sample-request.json
 ```
 
 ## Dispatch PR Review Requests To OpenClaw
@@ -166,16 +177,16 @@ Copy this folder to an OpenClaw agent host or package the wrapper into `~/.openc
 entry point from the spec is:
 
 ```bash
-~/.openclaw/bin/symphony-ask-openclaw-agent
+~/.openclaw/bin/orchestra-ask-openclaw-agent
 ```
 
 If `openclaw` is not available in noninteractive SSH shells, set `OPENCLAW_BIN` in
 the wrapper environment or update the OpenClaw agent host's shell profile for noninteractive SSH.
 
-## Symphony Integration Boundary
+## Runner Integration Boundary
 
-The Symphony codebase is not present in this folder, so the dynamic tool is not
-implemented here. The next implementation slice in Symphony should:
+The upstream runner codebase is not present in this folder, so the dynamic tool
+is not implemented here. The next implementation slice should:
 
 - Add `openclaw_participants.<name>` config with host, command, and timeout.
 - Expose `ask_openclaw_agent` with the smaller tool schema from the spec.

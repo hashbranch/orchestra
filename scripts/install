@@ -49,4 +49,5 @@ fi
 printf 'Next commands:\n'
 printf '  orchestra init\n'
 printf '  orchestra doctor\n'
-printf '  orchestra install-symphony\n'
+printf '  orchestra install-runner\n'
+printf '  orchestra up\n'

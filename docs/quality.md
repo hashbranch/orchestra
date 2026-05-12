@@ -2,7 +2,7 @@
 
 ## Current Grade
 
-Prototype harness: usable for local wrapper development and ready for Symphony
+Prototype harness: usable for local wrapper development and ready for Orchestra
 integration work.
 
 ## Strengths
@@ -16,7 +16,7 @@ integration work.
 
 - No CI runner is configured yet.
 - No real Tailscale SSH smoke test has been captured.
-- Symphony dynamic tool implementation is documented but not present.
+- Orchestra runner dynamic tool implementation is documented but not present.
 - Response schema is enforced by tests and normalization code, not a standalone
   response JSON schema.
 

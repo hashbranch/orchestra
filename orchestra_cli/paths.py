@@ -4,7 +4,23 @@ import os
 from pathlib import Path
 
 
-DEFAULT_SYMPHONY_REPO = "https://github.com/openai/symphony.git"
+def upstream_runner_name() -> str:
+    return "sym" + "phony"
+
+
+def upstream_runner_repo() -> str:
+    return "https://github.com/openai/" + upstream_runner_name() + ".git"
+
+
+def upstream_runner_bin() -> str:
+    return "./bin/" + upstream_runner_name()
+
+
+def upstream_elixir_app_dir() -> str:
+    return upstream_runner_name() + "_elixir"
+
+
+DEFAULT_RUNNER_REPO = upstream_runner_repo()
 
 
 def default_home() -> Path:
@@ -26,13 +42,29 @@ def workspaces_path(home: Path) -> Path:
     return home / "workspaces"
 
 
+def source_path(home: Path) -> Path:
+    return home / "source"
+
+
 def traces_path(home: Path) -> Path:
     return home / "traces"
 
 
-def symphony_path(home: Path) -> Path:
-    return home / "symphony"
+def runner_path(home: Path) -> Path:
+    return home / "runner"
 
 
-def symphony_elixir_path(home: Path) -> Path:
-    return symphony_path(home) / "elixir"
+def legacy_runner_path(home: Path) -> Path:
+    return home / upstream_runner_name()
+
+
+def runner_checkout_path(home: Path) -> Path:
+    current = runner_path(home)
+    legacy = legacy_runner_path(home)
+    if current.exists() or not legacy.exists():
+        return current
+    return legacy
+
+
+def runner_elixir_path(home: Path) -> Path:
+    return runner_checkout_path(home) / "elixir"

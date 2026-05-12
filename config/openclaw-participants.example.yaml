@@ -2,5 +2,5 @@ openclaw_participants:
   main:
     kind: ssh
     host: openclaw@agent-tailnet-hostname
-    command: ~/.openclaw/bin/symphony-ask-openclaw-agent
+    command: ~/.openclaw/bin/orchestra-ask-openclaw-agent
     timeout_ms: 240000

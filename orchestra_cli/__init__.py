@@ -1,2 +1,1 @@
-"""Local Symphony bootstrap CLI."""
-
+"""Local Orchestra bootstrap CLI."""

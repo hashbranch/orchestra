@@ -13,13 +13,13 @@ public Gateway or adding a service bridge before the prototype proves value.
 
 ## Decision
 
-Use Tailscale SSH to invoke `~/.openclaw/bin/symphony-ask-openclaw-agent` on the OpenClaw agent host.
+Use Tailscale SSH to invoke `~/.openclaw/bin/orchestra-ask-openclaw-agent` on the OpenClaw agent host.
 
-Symphony sends the enriched request JSON on stdin. The wrapper returns response
+Orchestra runner sends the enriched request JSON on stdin. The wrapper returns response
 JSON on stdout and diagnostics on stderr.
 
 ## Consequences
 
-The integration remains private and simple, but Symphony must enforce SSH timeout
+The integration remains private and simple, but Orchestra must enforce SSH timeout
 and error mapping. V2 can replace this with an HTTP bridge over Tailscale after
 the participant contract is stable.

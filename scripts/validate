@@ -26,11 +26,11 @@ test -x scripts/install-orchestra
 test -x scripts/install
 
 OPENCLAW_BIN=tests/fixtures/fake-openclaw \
-  bin/symphony-ask-openclaw-agent < samples/sample-request.json >/tmp/symphony-openclaw-agent-smoke-response.json
+  bin/orchestra-ask-openclaw-agent < samples/sample-request.json >/tmp/orchestra-openclaw-agent-smoke-response.json
 
-python3 -m json.tool /tmp/symphony-openclaw-agent-smoke-response.json >/dev/null
+python3 -m json.tool /tmp/orchestra-openclaw-agent-smoke-response.json >/dev/null
 
-python3 -c 'import json; r=json.load(open("/tmp/symphony-openclaw-agent-smoke-response.json")); assert r["status"] == "completed"; assert r["requestId"] == "test-001"; assert r["instructionsForCodex"]'
+python3 -c 'import json; r=json.load(open("/tmp/orchestra-openclaw-agent-smoke-response.json")); assert r["status"] == "completed"; assert r["requestId"] == "test-001"; assert r["instructionsForCodex"]'
 
 test -f AGENTS.md
 test -f ARCHITECTURE.md

@@ -8,7 +8,7 @@ Accepted
 
 The first Orchestra runs opened PRs successfully, but the generated branch names
 included a person's name. The desired branch naming convention is independent of
-the operator running Symphony and should be predictable for downstream GitHub
+the operator running Orchestra and should be predictable for downstream GitHub
 and Linear automation.
 
 The project also uses automated Gemini code review. Agents should not treat a PR

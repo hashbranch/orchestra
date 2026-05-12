@@ -4,38 +4,38 @@
 
 This repository has two related surfaces:
 
-- `orchestra`: a CLI that installs and runs local OpenAI Symphony instances.
-- `symphony-ask-openclaw-agent`: the future OpenClaw agent advisory wrapper.
+- `orchestra`: a CLI that installs and runs local upstream runner instances.
+- `orchestra-ask-openclaw-agent`: the future OpenClaw agent advisory wrapper.
 - `orchestra github pr-review dispatch`: a GitHub helper that turns PR review
   requests into OpenClaw agent review turns.
 
-The OpenClaw agent wrapper implements the V1 boundary between Symphony and OpenClaw agents:
+The OpenClaw agent wrapper implements the V1 boundary between Orchestra and OpenClaw agents:
 
-- Symphony asks for contextual review.
+- Orchestra asks for contextual review.
 - OpenClaw agent responds with structured advice.
-- Codex remains the only implementation worker in the active Symphony workspace.
+- Codex remains the only implementation worker in the active Orchestra workspace.
 
 ## System Boundary
 
 ```text
-Symphony workspace
+Orchestra workspace
   -> ask_openclaw_agent dynamic tool
   -> Tailscale SSH
-  -> ~/.openclaw/bin/symphony-ask-openclaw-agent
-  -> openclaw agent --agent main --session-id symphony-<issue-id> --json
+  -> ~/.openclaw/bin/orchestra-ask-openclaw-agent
+  -> openclaw agent --agent main --session-id orchestra-<issue-id> --json
 ```
 
 This repository owns the OpenClaw agent wrapper and the integration contract. It does not
-own Symphony's internal dynamic-tool registry.
+own Orchestra's internal dynamic-tool registry.
 
 ## Modules
 
 ### `bin/`
 
-Executable entry points. `bin/symphony-ask-openclaw-agent` is the OpenClaw-agent-side command
+Executable entry points. `bin/orchestra-ask-openclaw-agent` is the OpenClaw-agent-side command
 called over SSH.
 
-### `symphony_openclaw_agents/`
+### `orchestra_openclaw_agents/`
 
 Wrapper implementation. This module validates the incoming request, constructs
 the OpenClaw agent prompt, invokes OpenClaw, and normalizes output into the V1 response
@@ -43,7 +43,7 @@ schema.
 
 ### `schemas/`
 
-Machine-readable JSON schemas for agent and Symphony boundaries.
+Machine-readable JSON schemas for agent and Orchestra boundaries.
 
 ### `samples/`
 
@@ -51,7 +51,7 @@ Representative payloads for smoke tests and manual integration checks.
 
 ### `config/`
 
-Example configuration snippets for Symphony or OpenClaw agent deployment.
+Example configuration snippets for Orchestra or OpenClaw agent deployment.
 
 ### `docs/`
 
@@ -65,17 +65,17 @@ validation or setup step becomes important enough to repeat.
 
 ## Invariants
 
-- stdout from `symphony-ask-openclaw-agent` must be response JSON only.
+- stdout from `orchestra-ask-openclaw-agent` must be response JSON only.
 - diagnostics must go to stderr.
 - request content is data, never shell code.
 - `diff_review` requires a non-empty diff.
-- OpenClaw sessions must use `symphony-<issue-identifier>`.
+- OpenClaw sessions must use `orchestra-<issue-identifier>`.
 - failure responses must preserve `schemaVersion`, `requestId`, and `mode` when
   the request included them.
 
 ## Extension Points
 
-- Symphony dynamic tool implementation: see `docs/symphony-integration-design.md`.
+- Orchestra runner dynamic tool implementation: see `docs/orchestra-runner-integration-design.md`.
 - Additional OpenClaw participants: add a participant registry after OpenClaw Agents V1 is
   proven.
 - GitHub webhook receiver: future deployment code can verify GitHub signatures

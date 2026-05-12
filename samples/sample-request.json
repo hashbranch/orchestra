@@ -13,7 +13,7 @@
   },
   "repo": {
     "name": "example/repo",
-    "root": "/tmp/symphony/workspaces/TEST-001",
+    "root": "/tmp/orchestra/workspaces/TEST-001",
     "branch": "test-001-account-routing"
   },
   "plan": "Add an accountAlias field to integration calls and default to explicit aliases in workflow config.",

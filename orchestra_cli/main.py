@@ -11,11 +11,15 @@ from pathlib import Path
 from typing import Any
 
 from orchestra_cli.paths import (
-    DEFAULT_SYMPHONY_REPO,
+    DEFAULT_RUNNER_REPO,
     config_path,
     default_home,
-    symphony_elixir_path,
-    symphony_path,
+    legacy_runner_path,
+    source_path,
+    upstream_elixir_app_dir,
+    upstream_runner_bin,
+    runner_elixir_path,
+    runner_path,
     traces_path,
     workflow_path,
     workspaces_path,
@@ -43,12 +47,14 @@ from orchestra_cli.pr_review_dispatch import (
     PrReviewDispatchOptions,
     dispatch_pr_review,
 )
+from orchestra_cli.version import __version__
 from orchestra_cli.workflow import default_after_create, write_workflow
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="orchestra", description="Bootstrap and run a local Symphony instance.")
+    parser = argparse.ArgumentParser(prog="orchestra", description="Bootstrap and run a local Orchestra runner.")
     parser.add_argument("--home", type=Path, default=default_home(), help="Orchestra home directory.")
+    parser.add_argument("--version", action="version", version=f"orchestra {__version__}")
 
     subcommands = parser.add_subparsers(dest="command", required=True)
 
@@ -62,42 +68,58 @@ def main(argv: list[str] | None = None) -> int:
         "--target-repo",
         "--github-repo",
         dest="target_repo",
-        help="GitHub repo URL Symphony should clone for each issue workspace; this becomes origin for PRs.",
+        help="GitHub repo URL the runner should clone for each issue workspace; this becomes origin for PRs.",
     )
     init_parser.add_argument("--codex-command", default="codex app-server")
     init_parser.add_argument("--max-concurrent-agents", type=int)
     init_parser.add_argument("--max-turns", type=int, default=20)
-    init_parser.add_argument("--ready-state", default="Todo", help="Linear state Symphony should pick up as ready work.")
+    init_parser.add_argument("--ready-state", default="Todo", help="Linear state the runner should pick up as ready work.")
     init_parser.add_argument("--working-state", default="In Progress", help="Linear state used while an agent is working.")
     init_parser.add_argument("--complete-state", default="Dev Complete", help="Linear state used after PR creation and validation.")
     init_parser.add_argument("--blocked-state", default="Blocked", help="Linear state used for blockers when it exists.")
     init_parser.add_argument(
         "--terminal-states",
         default="Closed,Cancelled,Canceled,Duplicate,Done",
-        help="Comma-separated Linear terminal states that Symphony should ignore/clean up.",
+        help="Comma-separated Linear terminal states that the runner should ignore/clean up.",
     )
     init_parser.add_argument("--force", action="store_true", help="Overwrite existing config.")
     init_parser.set_defaults(func=cmd_init)
 
-    install_parser = subcommands.add_parser("install-symphony", help="Clone and build OpenAI Symphony.")
-    install_parser.add_argument("--source", default=DEFAULT_SYMPHONY_REPO)
+    install_parser = subcommands.add_parser("install-runner", help="Clone and build the local Orchestra runner.")
+    install_parser.add_argument("--source", default=DEFAULT_RUNNER_REPO)
     install_parser.add_argument("--ref", help="Optional git ref to checkout after clone/fetch.")
-    install_parser.add_argument("--force", action="store_true", help="Replace existing Symphony checkout.")
-    install_parser.add_argument("--skip-build", action="store_true", help="Clone/update Symphony without running mix build.")
+    install_parser.add_argument("--force", action="store_true", help="Replace existing runner checkout.")
+    install_parser.add_argument("--skip-build", action="store_true", help="Clone/update the runner without running mix build.")
     install_parser.add_argument(
         "--no-install-mise",
         action="store_true",
         help="Do not bootstrap mise automatically when no Elixir toolchain is found.",
     )
-    install_parser.set_defaults(func=cmd_install_symphony)
+    install_parser.set_defaults(func=cmd_install_runner)
 
     doctor_parser = subcommands.add_parser("doctor", help="Check local prerequisites and install state.")
     doctor_parser.set_defaults(func=cmd_doctor)
 
-    run_parser = subcommands.add_parser("run", help="Run the local Symphony service.")
+    run_parser = subcommands.add_parser("run", help="Run the local Orchestra service.")
     run_parser.add_argument("--workflow", type=Path, help="Override workflow path.")
-    run_parser.add_argument("--extra-arg", action="append", default=[], help="Extra argument passed to ./bin/symphony.")
+    run_parser.add_argument("--extra-arg", action="append", default=[], help="Extra argument passed to the runner binary.")
     run_parser.set_defaults(func=cmd_run)
+
+    up_parser = subcommands.add_parser("up", help="Check for Orchestra updates, then run the local service.")
+    up_parser.add_argument("--workflow", type=Path, help="Override workflow path.")
+    up_parser.add_argument("--extra-arg", action="append", default=[], help="Extra argument passed to the runner binary.")
+    up_parser.add_argument("--yes-update", action="store_true", help="Apply an available Orchestra update without prompting.")
+    up_parser.add_argument("--no-update", action="store_true", help="Skip the Orchestra update check.")
+    up_parser.set_defaults(func=cmd_up)
+
+    update_parser = subcommands.add_parser("update", help="Update Orchestra from its source checkout.")
+    update_parser.add_argument("--check", action="store_true", help="Only check whether an update is available.")
+    update_parser.add_argument("--yes", action="store_true", help="Apply an available update without prompting.")
+    update_parser.add_argument("--skip-install", action="store_true", help=argparse.SUPPRESS)
+    update_parser.set_defaults(func=cmd_update)
+
+    version_parser = subcommands.add_parser("version", help="Show Orchestra version.")
+    version_parser.set_defaults(func=cmd_version)
 
     show_parser = subcommands.add_parser("show", help="Show generated paths or config.")
     show_parser.add_argument("what", choices=["paths", "config", "workflow"])
@@ -243,9 +265,9 @@ def cmd_init(args: argparse.Namespace) -> int:
         return 2
 
     print_init_intro()
-    print_init_step(1, 4, "Linear API key", "Authenticate Symphony to read and update Linear issues.")
+    print_init_step(1, 4, "Linear API key", "Authenticate Orchestra to read and update Linear issues.")
     linear_api_key = resolve_linear_api_key(args.linear_api_key)
-    print_init_step(2, 4, "Linear project", "Choose which Linear project Symphony should watch for work.")
+    print_init_step(2, 4, "Linear project", "Choose which Linear project Orchestra should watch for work.")
     linear_project_slug = resolve_required_value(
         args.linear_project_slug,
         "Linear project slug",
@@ -262,7 +284,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         args.max_concurrent_agents,
         "Max concurrent agents",
         1,
-        "How many Linear issues Symphony may work on at the same time.",
+        "How many Linear issues Orchestra may work on at the same time.",
     )
 
     if linear_project_slug is None or target_repo is None or linear_api_key is None or max_concurrent_agents is None:
@@ -289,7 +311,7 @@ def cmd_init(args: argparse.Namespace) -> int:
             "blocked": args.blocked_state,
             "terminal": parse_csv(args.terminal_states),
         },
-        "symphony_repo": DEFAULT_SYMPHONY_REPO,
+        "runner_repo": DEFAULT_RUNNER_REPO,
     }
 
     home.mkdir(parents=True, exist_ok=True)
@@ -302,12 +324,16 @@ def cmd_init(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_install_symphony(args: argparse.Namespace) -> int:
+def cmd_install_runner(args: argparse.Namespace) -> int:
     home = args.home.expanduser()
-    checkout = symphony_path(home)
+    checkout = runner_path(home)
+    legacy_checkout = legacy_runner_path(home)
 
     if checkout.exists() and args.force:
         shutil.rmtree(checkout)
+
+    if legacy_checkout.exists() and not checkout.exists():
+        legacy_checkout.rename(checkout)
 
     if checkout.exists():
         run(["git", "-C", str(checkout), "fetch", "--all", "--tags"])
@@ -318,24 +344,24 @@ def cmd_install_symphony(args: argparse.Namespace) -> int:
     if args.ref:
         run(["git", "-C", str(checkout), "checkout", args.ref])
 
-    elixir_dir = symphony_elixir_path(home)
+    elixir_dir = runner_elixir_path(home)
     if not elixir_dir.exists():
-        print(f"Expected Symphony Elixir directory at {elixir_dir}", file=sys.stderr)
+        print(f"Expected runner Elixir directory at {elixir_dir}", file=sys.stderr)
         return 1
 
-    if not ensure_symphony_blocker_patch(elixir_dir):
+    if not ensure_runner_blocker_patch(elixir_dir):
         return 1
 
     if args.skip_build:
-        print(f"Installed Symphony source at {checkout}; skipped build.")
+        print(f"Installed runner source at {checkout}; skipped build.")
         return 0
 
     toolchain = ensure_elixir_toolchain(install_mise=not args.no_install_mise)
     if toolchain is None:
-        print("Installed Symphony source, but neither mise nor mix is available to build it.", file=sys.stderr)
+        print("Installed runner source, but neither mise nor mix is available to build it.", file=sys.stderr)
         return 1
 
-    build_symphony(elixir_dir, toolchain)
+    build_runner(elixir_dir, toolchain)
     return 0
 
 
@@ -352,7 +378,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         check_executable("codex"),
         check_elixir_toolchain(),
         check_env_or_config("LINEAR_API_KEY", config_path(home)),
-        check_path("symphony checkout", symphony_elixir_path(home), must_exist=True),
+        check_path("runner checkout", runner_elixir_path(home), must_exist=True),
     ]
 
     for check in checks:
@@ -364,19 +390,19 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 def cmd_run(args: argparse.Namespace) -> int:
     home = args.home.expanduser()
-    elixir_dir = symphony_elixir_path(home)
+    elixir_dir = runner_elixir_path(home)
     wf_path = (args.workflow or workflow_path(home)).expanduser()
 
     if not elixir_dir.exists():
-        print(f"Symphony is not installed at {elixir_dir}. Run `orchestra install-symphony` first.", file=sys.stderr)
+        print(f"Orchestra runner is not installed at {elixir_dir}. Run `orchestra install-runner` first.", file=sys.stderr)
         return 1
     if not wf_path.exists():
         print(f"Workflow file does not exist at {wf_path}. Run `orchestra init` first.", file=sys.stderr)
         return 1
-    if not ensure_symphony_blocker_patch(elixir_dir):
+    if not ensure_runner_blocker_patch(elixir_dir):
         return 1
 
-    command = ["./bin/symphony", str(wf_path)] + args.extra_arg
+    command = [upstream_runner_bin(), str(wf_path)] + args.extra_arg
     mise = find_executable("mise")
     if mise:
         command = [mise, "exec", "--"] + command
@@ -384,8 +410,62 @@ def cmd_run(args: argparse.Namespace) -> int:
     try:
         return subprocess.call(command, cwd=elixir_dir, env=run_env(home))
     except KeyboardInterrupt:
-        print("\nInterrupted; Symphony stopped.", file=sys.stderr)
+        print("\nInterrupted; Orchestra stopped.", file=sys.stderr)
         return 130
+
+
+def cmd_up(args: argparse.Namespace) -> int:
+    if args.yes_update and args.no_update:
+        print("Use only one of --yes-update or --no-update.", file=sys.stderr)
+        return 2
+
+    if not args.no_update:
+        status = check_update_status(args.home.expanduser())
+        if status["ok"] and status.get("available"):
+            print(f"Orchestra update available: {status['current']} -> {status['latest']}")
+            if args.yes_update or confirm("Update Orchestra now?"):
+                result = apply_update(args.home.expanduser(), skip_install=False)
+                if result != 0:
+                    return result
+                refresh_workflow_if_configured(args.home.expanduser())
+            else:
+                print("Skipping Orchestra update.")
+        elif status["ok"]:
+            print(f"Orchestra is up to date ({status['current']}).")
+        else:
+            print(f"Could not check for Orchestra updates: {status['reason']}", file=sys.stderr)
+
+    return cmd_run(args)
+
+
+def cmd_update(args: argparse.Namespace) -> int:
+    home = args.home.expanduser()
+    status = check_update_status(home)
+    if not status["ok"]:
+        print(f"Could not check for Orchestra updates: {status['reason']}", file=sys.stderr)
+        return 1
+
+    if not status.get("available"):
+        print(f"Orchestra is up to date ({status['current']}).")
+        return 0
+
+    print(f"Orchestra update available: {status['current']} -> {status['latest']}")
+    if args.check:
+        return 0
+
+    if not args.yes and not confirm("Update Orchestra now?"):
+        print("Skipped Orchestra update.")
+        return 0
+
+    result = apply_update(home, skip_install=args.skip_install)
+    if result == 0:
+        refresh_workflow_if_configured(home)
+    return result
+
+
+def cmd_version(_args: argparse.Namespace) -> int:
+    print(f"orchestra {__version__}")
+    return 0
 
 
 def cmd_show(args: argparse.Namespace) -> int:
@@ -565,12 +645,97 @@ def paths_payload(home: Path) -> dict[str, str]:
     return {
         "home": str(home),
         "config": str(config_path(home)),
+        "source": str(source_path(home)),
         "workflow": str(workflow_path(home)),
         "workspaces": str(workspaces_path(home)),
         "traces": str(traces_path(home)),
-        "symphony": str(symphony_path(home)),
-        "symphony_elixir": str(symphony_elixir_path(home)),
+        "runner": str(runner_path(home)),
+        "runner_elixir": str(runner_elixir_path(home)),
     }
+
+
+def check_update_status(home: Path) -> dict[str, Any]:
+    source = source_path(home)
+    if not (source / ".git").is_dir():
+        return {
+            "ok": False,
+            "reason": f"source checkout not found at {source}; install with the public curl command first",
+        }
+
+    fetch = subprocess.run(["git", "-C", str(source), "fetch", "origin", "main"], capture_output=True, text=True)
+    if fetch.returncode != 0:
+        return {"ok": False, "reason": fetch.stderr.strip() or "git fetch failed"}
+
+    current = git_output(source, ["rev-parse", "HEAD"])
+    latest = git_output(source, ["rev-parse", "origin/main"])
+    if current is None or latest is None:
+        return {"ok": False, "reason": "could not resolve local or remote revision"}
+
+    if current == latest:
+        return {"ok": True, "available": False, "current": current[:7], "latest": latest[:7]}
+
+    if git_is_ancestor(source, current, latest):
+        return {"ok": True, "available": True, "current": current[:7], "latest": latest[:7]}
+
+    return {
+        "ok": False,
+        "reason": f"source checkout at {source} has diverged from origin/main",
+        "current": current[:7],
+        "latest": latest[:7],
+    }
+
+
+def apply_update(home: Path, skip_install: bool = False) -> int:
+    source = source_path(home)
+    if not (source / ".git").is_dir():
+        print(f"Source checkout not found at {source}. Reinstall with the public curl command.", file=sys.stderr)
+        return 1
+
+    commands = [
+        ["git", "-C", str(source), "checkout", "main"],
+        ["git", "-C", str(source), "pull", "--ff-only", "origin", "main"],
+    ]
+    for command in commands:
+        completed = subprocess.run(command)
+        if completed.returncode != 0:
+            return completed.returncode
+
+    if skip_install:
+        print(f"Updated source checkout at {source}; skipped package reinstall.")
+        return 0
+
+    installer = source / "scripts" / "install-orchestra"
+    completed = subprocess.run([str(installer)])
+    return completed.returncode
+
+
+def refresh_workflow_if_configured(home: Path) -> None:
+    if not config_path(home).exists():
+        return
+    try:
+        write_workflow(workflow_path(home), load_config(home))
+        print(f"Regenerated workflow at {workflow_path(home)}")
+    except (OSError, json.JSONDecodeError) as error:
+        print(f"Warning: could not regenerate workflow after update: {error}", file=sys.stderr)
+
+
+def git_output(source: Path, args: list[str]) -> str | None:
+    completed = subprocess.run(["git", "-C", str(source), *args], capture_output=True, text=True)
+    if completed.returncode != 0:
+        return None
+    return completed.stdout.strip()
+
+
+def git_is_ancestor(source: Path, older: str, newer: str) -> bool:
+    completed = subprocess.run(["git", "-C", str(source), "merge-base", "--is-ancestor", older, newer])
+    return completed.returncode == 0
+
+
+def confirm(prompt: str) -> bool:
+    if not sys.stdin.isatty():
+        print("Non-interactive shell; rerun with --yes to apply the update.")
+        return False
+    return input(f"{prompt} [y/N]: ").strip().lower() in {"y", "yes"}
 
 
 def load_config(home: Path) -> dict[str, Any]:
@@ -621,7 +786,7 @@ def ensure_elixir_toolchain(install_mise: bool = True) -> tuple[str, str] | None
     return None
 
 
-def build_symphony(elixir_dir: Path, toolchain: tuple[str, str]) -> None:
+def build_runner(elixir_dir: Path, toolchain: tuple[str, str]) -> None:
     name, executable = toolchain
     if name == "mise":
         run([executable, "trust"], cwd=elixir_dir)
@@ -635,10 +800,10 @@ def build_symphony(elixir_dir: Path, toolchain: tuple[str, str]) -> None:
         raise ValueError(f"unsupported toolchain: {toolchain!r}")
 
 
-def ensure_symphony_blocker_patch(elixir_dir: Path) -> bool:
-    orchestrator = elixir_dir / "lib" / "symphony_elixir" / "orchestrator.ex"
+def ensure_runner_blocker_patch(elixir_dir: Path) -> bool:
+    orchestrator = elixir_dir / "lib" / upstream_elixir_app_dir() / "orchestrator.ex"
     if not orchestrator.exists():
-        print(f"Expected Symphony orchestrator at {orchestrator}", file=sys.stderr)
+        print(f"Expected runner orchestrator at {orchestrator}", file=sys.stderr)
         return False
 
     text = orchestrator.read_text(encoding="utf-8")
@@ -682,11 +847,11 @@ def ensure_symphony_blocker_patch(elixir_dir: Path) -> bool:
     updated = updated.replace(old_function, new_function)
 
     if updated == text or "todo_issue_blocked_by_non_terminal?" in updated:
-        print("Could not patch Symphony blocker scheduling logic; upstream file shape changed.", file=sys.stderr)
+        print("Could not patch runner blocker scheduling logic; upstream file shape changed.", file=sys.stderr)
         return False
 
     orchestrator.write_text(updated, encoding="utf-8")
-    print("Patched Symphony to skip any issue with unresolved Linear blockers.")
+    print("Patched runner to skip any issue with unresolved Linear blockers.")
     return True
 
 
@@ -733,7 +898,7 @@ def print_init_intro() -> None:
                 "",
                 "Orchestra setup",
                 "===============",
-                "This wizard configures a local Symphony runner for Linear-driven Codex work.",
+                "This wizard configures a local Orchestra runner for Linear-driven Codex work.",
                 "",
                 "It will write local config, generate WORKFLOW.md, and create the workspace root.",
                 "",
@@ -775,7 +940,7 @@ def print_init_summary(home: Path, cfg_path: Path, wf_path: Path, config: dict[s
                 "",
                 "Next:",
                 "  orchestra doctor",
-                "  orchestra install-symphony",
+                "  orchestra install-runner",
                 "  orchestra run --extra-arg=--i-understand-that-this-will-be-running-without-the-usual-guardrails",
             ]
         )
@@ -877,7 +1042,7 @@ def check_elixir_toolchain() -> dict[str, Any]:
     return {
         "label": "mise or mix",
         "ok": False,
-        "detail": "not found; `orchestra install-symphony` will try to install mise",
+        "detail": "not found; `orchestra install-runner` will try to install mise",
     }
 
 

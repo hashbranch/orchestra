@@ -1,23 +1,23 @@
-# Symphony x OpenClaw V1: OpenClaw Agent Review Participant
+# Orchestra x OpenClaw V1: OpenClaw Agent Review Participant
 
 Status: Draft v1  
 Owner: Hashbranch  
-Primary goal: Let a locally running Symphony instance ask configured OpenClaw agents for memory-bearing design/context/diff review over Tailscale, while Codex remains the implementation worker.
+Primary goal: Let a locally running Orchestra instance ask configured OpenClaw agents for memory-bearing design/context/diff review over Tailscale, while Codex remains the implementation worker.
 
 ---
 
 ## 1. Problem
 
-Symphony is useful as a Codex-centered issue runner, but fresh Codex workers lack durable local context:
+Orchestra is useful as a Codex-centered issue runner, but fresh Codex workers lack durable local context:
 
 - operator/product/company preferences
 - prior architectural decisions
 - Hashbranch/OpenClaw conventions
 - judgment from prior work
 
-OpenClaw agents can have that context, but should not become uncontrolled editors in the same Symphony workspace.
+OpenClaw agents can have that context, but should not become uncontrolled editors in the same Orchestra workspace.
 
-V1 should let Symphony ask OpenClaw agents for structured review/advice without giving them write access to the active Codex workspace.
+V1 should let Orchestra ask OpenClaw agents for structured review/advice without giving them write access to the active Codex workspace.
 
 ---
 
@@ -32,7 +32,7 @@ V1 must avoid:
 - shared workspace writes
 - multi-agent file stomping
 - public Gateway exposure
-- sending Symphony chatter into a normal human-facing chat session
+- sending Orchestra chatter into a normal human-facing chat session
 - involving Forge/Meridian/ClawdActual yet
 
 ---
@@ -41,7 +41,7 @@ V1 must avoid:
 
 ```text
 operator machine
-  └─ Symphony
+  └─ Orchestra
        ├─ Linear/GitHub orchestration
        ├─ Codex app-server worker(s)
        └─ dynamic tool: ask_openclaw_agent
@@ -49,8 +49,8 @@ operator machine
               | Tailscale SSH
               v
 OpenClaw agent host
-  └─ ~/.openclaw/bin/symphony-ask-openclaw-agent
-       └─ openclaw agent --agent main --session-id symphony-<issue-id> --json
+  └─ ~/.openclaw/bin/orchestra-ask-openclaw-agent
+       └─ openclaw agent --agent main --session-id orchestra-<issue-id> --json
 ```
 
 V1 uses **Tailscale SSH** rather than HTTP/Gateway APIs. It is simpler, private, and good enough for a prototype.
@@ -115,7 +115,7 @@ Must have:
 - `openclaw` available in noninteractive SSH shell
 - Gateway running
 - model/auth working
-- wrapper script installed at `~/.openclaw/bin/symphony-ask-openclaw-agent`
+- wrapper script installed at `~/.openclaw/bin/orchestra-ask-openclaw-agent`
 
 If `openclaw` is not in PATH over SSH, wrapper should set PATH explicitly.
 
@@ -128,21 +128,21 @@ Do not use an OpenClaw agent host's normal human-facing session.
 Use deterministic session IDs:
 
 ```text
-symphony-<issue-identifier>
+orchestra-<issue-identifier>
 ```
 
 Examples:
 
 ```text
-symphony-CLA-123
-symphony-HB-456
+orchestra-CLA-123
+orchestra-HB-456
 ```
 
 The wrapper should pass this into OpenClaw via `--session-id`.
 
 Purpose:
 
-- keep Symphony context out of normal chat
+- keep Orchestra context out of normal chat
 - preserve per-issue continuity
 - allow follow-up reviews on the same issue
 
@@ -150,7 +150,7 @@ Purpose:
 
 ## 8. Request Schema
 
-Symphony sends JSON to OpenClaw agent wrapper over stdin.
+Orchestra runner sends JSON to OpenClaw agent wrapper over stdin.
 
 ```json
 {
@@ -168,7 +168,7 @@ Symphony sends JSON to OpenClaw agent wrapper over stdin.
   },
   "repo": {
     "name": "hashbranch/admin",
-    "root": "/path/to/symphony/workspace",
+    "root": "/path/to/orchestra/workspace",
     "branch": "cla-123-example"
   },
   "plan": "Optional implementation plan from Codex",
@@ -252,7 +252,7 @@ On failure:
 Path on an OpenClaw agent host:
 
 ```bash
-~/.openclaw/bin/symphony-ask-openclaw-agent
+~/.openclaw/bin/orchestra-ask-openclaw-agent
 ```
 
 Responsibilities:
@@ -271,7 +271,7 @@ Suggested CLI call:
 ```bash
 openclaw agent \
   --agent main \
-  --session-id "symphony-${ISSUE_IDENTIFIER}" \
+  --session-id "orchestra-${ISSUE_IDENTIFIER}" \
   --message-file "$PROMPT_FILE" \
   --json \
   --timeout 180
@@ -288,29 +288,29 @@ Wrapper should never use `--deliver`.
 The wrapper should include this instruction block in every prompt:
 
 ```text
-You are an OpenClaw agent participating in a Symphony coding workflow.
+You are an OpenClaw agent participating in a Orchestra coding workflow.
 
 Role:
 - You are an OpenClaw coding/context agent.
-- Codex owns implementation in the active Symphony workspace.
+- Codex owns implementation in the active Orchestra workspace.
 - Your job is to review, advise, surface context, and produce instructions for Codex.
 
 Hard rules:
 - Do not message the human operator.
 - Do not modify files.
 - Do not run external actions.
-- Do not assume you can access the Symphony workspace unless explicitly given files/diffs.
+- Do not assume you can access the Orchestra workspace unless explicitly given files/diffs.
 - Return JSON only matching the response schema.
-- If you need more information, set needsHuman=true or include a recommendation for what Symphony/Codex should provide next.
+- If you need more information, set needsHuman=true or include a recommendation for what Orchestra/Codex should provide next.
 ```
 
 Then append the request payload.
 
 ---
 
-## 12. Symphony Dynamic Tool
+## 12. Orchestra Dynamic Tool
 
-Add a dynamic tool in Symphony, probably next to current `linear_graphql` support.
+Add a dynamic tool in Orchestra, probably next to current `linear_graphql` support.
 
 Tool name:
 
@@ -343,7 +343,7 @@ Tool input schema should mirror the request schema, with a smaller surface avail
 }
 ```
 
-Symphony should enrich the tool call with:
+Orchestra runner should enrich the tool call with:
 
 - current issue
 - repo/workspace metadata
@@ -355,7 +355,7 @@ Codex should not have to manually pass all metadata.
 
 ---
 
-## 13. SSH Invocation from Symphony
+## 13. SSH Invocation from Orchestra
 
 Config:
 
@@ -364,14 +364,14 @@ openclaw_participants:
   main:
     kind: ssh
     host: openclaw@<agent-tailnet-hostname>
-    command: ~/.openclaw/bin/symphony-ask-openclaw-agent
+    command: ~/.openclaw/bin/orchestra-ask-openclaw-agent
     timeout_ms: 240000
 ```
 
 Execution pattern:
 
 ```bash
-ssh -T openclaw@<agent-tailnet-hostname> '~/.openclaw/bin/symphony-ask-openclaw-agent' < request.json
+ssh -T openclaw@<agent-tailnet-hostname> '~/.openclaw/bin/orchestra-ask-openclaw-agent' < request.json
 ```
 
 Recommended SSH options:
@@ -382,10 +382,10 @@ ssh \
   -o BatchMode=yes \
   -o ConnectTimeout=10 \
   openclaw@<agent-tailnet-hostname> \
-  '~/.openclaw/bin/symphony-ask-openclaw-agent'
+  '~/.openclaw/bin/orchestra-ask-openclaw-agent'
 ```
 
-Timeout should be enforced by Symphony as well as by the wrapper.
+Timeout should be enforced by Orchestra as well as by the wrapper.
 
 ---
 
@@ -415,7 +415,7 @@ If an OpenClaw agent marks `blocking=true`, pause and resolve the issue before c
 
 ## 15. Error Handling
 
-Symphony behavior:
+Orchestra runner behavior:
 
 - If `ask_openclaw_agent` fails during optional review, continue but log warning.
 - If `ask_openclaw_agent` fails during required gate, mark issue blocked or ask human.
@@ -444,7 +444,7 @@ Suggested failure codes:
 - Quote all shell variables or avoid shell interpolation entirely.
 - Do not pass secrets in request payload.
 - Do not allow OpenClaw agent to send external messages from this workflow.
-- Do not allow OpenClaw agent to mutate Symphony workspace in V1.
+- Do not allow OpenClaw agent to mutate Orchestra workspace in V1.
 
 ---
 
@@ -454,15 +454,15 @@ V1 is complete when:
 
 1. From operator machine:
    ```bash
-   ssh openclaw@<agent-tailnet-hostname> '~/.openclaw/bin/symphony-ask-openclaw-agent' < sample-request.json
+   ssh openclaw@<agent-tailnet-hostname> '~/.openclaw/bin/orchestra-ask-openclaw-agent' < sample-request.json
    ```
    returns valid response JSON.
 
-2. Symphony exposes `ask_openclaw_agent` to Codex.
+2. Orchestra exposes `ask_openclaw_agent` to Codex.
 
 3. Codex can call `ask_openclaw_agent` during a test issue.
 
-4. OpenClaw agent response appears in Symphony logs/tool output.
+4. OpenClaw agent response appears in Orchestra logs/tool output.
 
 5. Codex can incorporate `instructionsForCodex` into its next step.
 
@@ -490,7 +490,7 @@ V1 is complete when:
   },
   "repo": {
     "name": "example/repo",
-    "root": "/tmp/symphony/workspaces/TEST-001",
+    "root": "/tmp/orchestra/workspaces/TEST-001",
     "branch": "test-001-account-routing"
   },
   "plan": "Add an accountAlias field to integration calls and default to explicit aliases in workflow config.",
@@ -523,10 +523,10 @@ After V1 works:
 ## 20. Suggested Build Order
 
 1. Confirm Tailscale SSH from operator machine to OpenClaw agent.
-2. Create `~/.openclaw/bin/symphony-ask-openclaw-agent` on OpenClaw agent.
+2. Create `~/.openclaw/bin/orchestra-ask-openclaw-agent` on OpenClaw agent.
 3. Test wrapper manually with sample payload.
-4. Add Symphony config for OpenClaw participant SSH target.
+4. Add Orchestra config for OpenClaw participant SSH target.
 5. Add `ask_openclaw_agent` dynamic tool implementation.
 6. Update `WORKFLOW.md` prompt guidance.
-7. Run a fake Linear issue through Symphony.
+7. Run a fake Linear issue through Orchestra.
 8. Run one real low-risk issue.

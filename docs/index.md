@@ -5,7 +5,7 @@ This directory is the agent-readable knowledge base for the repository.
 ## Core Docs
 
 - `../ARCHITECTURE.md`: system map, modules, and invariants.
-- `symphony-integration-design.md`: Symphony-side dynamic tool boundary.
+- `orchestra-runner-integration-design.md`: Orchestra runner dynamic tool boundary.
 - `decisions/`: architectural decisions and their consequences.
   - `decisions/0003-honor-linear-blockers-before-dispatch.md`: why Orchestra
     blocks dispatch when Linear dependencies are unresolved.
@@ -15,7 +15,7 @@ This directory is the agent-readable knowledge base for the repository.
 - `tech-debt-tracker.md`: known cleanup and hardening work.
 - `quality.md`: current quality bar and verification gaps.
 - `try-it-out.md`: wrapper install and end-to-end smoke runbook.
-- `install-orchestra.md`: install path for another machine running local Symphony.
+- `install-orchestra.md`: install path for another machine running local Orchestra.
 
 ## Reading Order
 
@@ -28,5 +28,5 @@ For implementation work:
 5. Run `../scripts/validate` before returning.
 
 For design work, start with the spec at
-`../symphony-openclaw-agents-v1-spec.md`, then read the architecture and decision
+`../orchestra-openclaw-agents-v1-spec.md`, then read the architecture and decision
 docs.

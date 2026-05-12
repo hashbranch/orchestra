@@ -12,7 +12,7 @@ expected post-PR state is `Dev Complete`. Issues should not be advanced directly
 to terminal states such as `Done`, because those states are owned by the
 project's review, merge, and release workflow.
 
-Keeping `Dev Complete` in Symphony's active states also causes handoff issues to
+Keeping `Dev Complete` in Orchestra's active states also causes handoff issues to
 remain eligible for agent dispatch after the PR exists.
 
 ## Decision

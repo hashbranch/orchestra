@@ -5,7 +5,7 @@ not the source of truth.
 
 ## Start Here
 
-- Product/spec source: `symphony-openclaw-agents-v1-spec.md`
+- Product/spec source: `orchestra-openclaw-agents-v1-spec.md`
 - Architecture map: `ARCHITECTURE.md`
 - Documentation index: `docs/index.md`
 - Install guide: `docs/install-orchestra.md`

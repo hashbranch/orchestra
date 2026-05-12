@@ -15,20 +15,20 @@ SCHEMA_VERSION = "1.0"
 VALID_MODES = {"plan_review", "diff_review", "context_lookup", "risk_review"}
 DEFAULT_TIMEOUT_SECONDS = 180
 
-PROMPT_CONTRACT = """You are an OpenClaw agent participating in a Symphony coding workflow.
+PROMPT_CONTRACT = """You are an OpenClaw agent participating in an Orchestra coding workflow.
 
 Role:
 - You are an advisory OpenClaw coding/context agent.
-- Codex owns implementation in the active Symphony workspace.
+- Codex owns implementation in the active Orchestra workspace.
 - Your job is to review, advise, surface context, and produce instructions for Codex.
 
 Hard rules:
 - Do not message the human operator.
 - Do not modify files.
 - Do not run external actions.
-- Do not assume you can access the Symphony workspace unless explicitly given files/diffs.
+- Do not assume you can access the Orchestra workspace unless explicitly given files/diffs.
 - Return JSON only matching the response schema.
-- If you need more information, set needsHuman=true or include a recommendation for what Symphony/Codex should provide next.
+- If you need more information, set needsHuman=true or include a recommendation for what Orchestra/Codex should provide next.
 """
 
 
@@ -44,7 +44,7 @@ class RequestError(Exception):
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Ask an OpenClaw agent for Symphony review.")
+    parser = argparse.ArgumentParser(description="Ask an OpenClaw agent for Orchestra review.")
     parser.add_argument("--openclaw-bin", default=os.environ.get("OPENCLAW_BIN", "openclaw"))
     parser.add_argument("--agent", default=os.environ.get("OPENCLAW_AGENT", "main"))
     parser.add_argument(
@@ -153,7 +153,7 @@ def build_prompt(request: dict[str, Any]) -> str:
 
 def call_openclaw(request: dict[str, Any], prompt: str, config: WrapperConfig) -> str:
     issue_identifier = request["issue"]["identifier"]
-    session_id = f"symphony-{issue_identifier}"
+    session_id = f"orchestra-{issue_identifier}"
 
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as prompt_file:
         prompt_file.write(prompt)

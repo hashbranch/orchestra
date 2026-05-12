@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-Symphony needs durable product, architecture, and company context during Codex-led
+Orchestra needs durable product, architecture, and company context during Codex-led
 implementation. OpenClaw agents can have that memory, but sharing the active workspace would
 create file-stomping and authority problems.
 
@@ -21,10 +21,10 @@ V1 treats OpenClaw agents as advisory reviewers only.
 - OpenClaw agents receive plans, questions, and diffs as data.
 - OpenClaw agents return structured JSON instructions for Codex.
 - OpenClaw agents do not modify files, open PRs, deliver messages, or access the active
-  Symphony workspace directly.
+  Orchestra workspace directly.
 
 ## Consequences
 
 The wrapper prompt repeats the advisory-only role on every request. The response
-schema includes `blocking`, `needsHuman`, and `instructionsForCodex` so Symphony
+schema includes `blocking`, `needsHuman`, and `instructionsForCodex` so Orchestra
 and Codex can act on advice without granting edit authority.

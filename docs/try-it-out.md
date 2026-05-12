@@ -1,6 +1,6 @@
 # Try It Out
 
-This is the shortest path to prove the V1 loop with Codex workers in Symphony
+This is the shortest path to prove the V1 loop with Codex workers in Orchestra
 and OpenClaw agents as advisory participants.
 
 ## 1. Install Wrapper On An OpenClaw Agent Host
@@ -20,34 +20,24 @@ scripts/smoke-openclaw-agent openclaw@agent-tailnet-hostname
 Expected result: valid JSON on stdout. If OpenClaw is unavailable on the agent host, the
 response should still be valid failed JSON.
 
-## 3. Run Patched Symphony
+## 3. Run Orchestra
 
-The local patched Symphony checkout is:
-
-```text
-vendor/openai-symphony/elixir
-```
-
-Add OpenClaw agent config to the `WORKFLOW.md` used to launch Symphony:
+Add OpenClaw agent config to the `WORKFLOW.md` used to launch Orchestra:
 
 ```yaml
 openclaw_participants:
   main:
     kind: ssh
     host: openclaw@agent-tailnet-hostname
-    command: ~/.openclaw/bin/symphony-ask-openclaw-agent
+    command: ~/.openclaw/bin/orchestra-ask-openclaw-agent
     timeout_ms: 240000
 ```
 
-Then run Symphony from the patched checkout:
+Then install and run the local runner:
 
 ```bash
-cd vendor/openai-symphony/elixir
-mise trust
-mise install
-mise exec -- mix setup
-mise exec -- mix build
-mise exec -- ./bin/symphony /path/to/WORKFLOW.md
+orchestra install-runner
+orchestra up
 ```
 
 ## 4. Prove The Agent Loop
@@ -62,8 +52,8 @@ A successful loop is:
 
 1. Codex sees `ask_openclaw_agent` in app-server dynamic tools.
 2. Codex calls `ask_openclaw_agent`.
-3. Symphony enriches the request with issue/workspace metadata.
-4. Symphony SSHs to the OpenClaw agent host and receives response JSON.
+3. Orchestra enriches the request with issue/workspace metadata.
+4. Orchestra SSHs to the OpenClaw agent host and receives response JSON.
 5. Codex incorporates `instructionsForCodex`.
 6. No Telegram message is sent.
 7. OpenClaw agents do not modify the active workspace.

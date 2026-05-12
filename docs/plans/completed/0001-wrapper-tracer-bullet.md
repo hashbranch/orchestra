@@ -9,7 +9,7 @@ Created the first executable slice for the OpenClaw agent participant:
 - stdin request JSON
 - request validation
 - advisory prompt construction
-- OpenClaw invocation with isolated Symphony session IDs
+- OpenClaw invocation with isolated Orchestra session IDs
 - response normalization
 - structured failure handling
 - unit tests

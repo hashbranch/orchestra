@@ -1,7 +1,7 @@
-# Symphony Integration Design
+# Orchestra Integration Design
 
-This is the Symphony-side slice implied by `symphony-openclaw-agents-v1-spec.md`.
-The Symphony application code is not present in this folder, so these notes define
+This is the Orchestra-runner-side slice implied by `orchestra-openclaw-agents-v1-spec.md`.
+The runner application code is not present in this folder, so these notes define
 the target integration boundary.
 
 ## Dynamic Tool
@@ -19,10 +19,10 @@ only provide `mode`, `question`, and optional `plan` or `diff`.
 
 ## Request Enrichment
 
-Symphony should enrich the tool call before invoking SSH:
+Orchestra runner should enrich the tool call before invoking SSH:
 
 - `schemaVersion`: fixed to `1.0`
-- `requestId`: Symphony run/tool-call ID or UUID
+- `requestId`: Orchestra run/tool-call ID or UUID
 - `issue`: current Linear/GitHub issue metadata
 - `repo`: repo name, workspace root, and current branch
 - `constraints`: standard V1 constraints from the spec
@@ -38,7 +38,7 @@ openclaw_participants:
   main:
     kind: ssh
     host: openclaw@agent-tailnet-hostname
-    command: ~/.openclaw/bin/symphony-ask-openclaw-agent
+    command: ~/.openclaw/bin/orchestra-ask-openclaw-agent
     timeout_ms: 240000
 ```
 
@@ -53,12 +53,12 @@ Diagnostics from the remote wrapper must remain on stderr/logs.
 
 ## Error Mapping
 
-Symphony should return a failed response matching the V1 response schema when the
+Orchestra runner should return a failed response matching the V1 response schema when the
 SSH layer fails before the wrapper can answer:
 
 - SSH exits non-zero or cannot connect: `SSH_UNREACHABLE`
 - stdout is not JSON: `MALFORMED_RESPONSE`
-- Symphony-side timeout expires: `OPENCLAW_TIMEOUT`
+- Orchestra-runner-side timeout expires: `OPENCLAW_TIMEOUT`
 
 If the wrapper returns a valid failed response, preserve its `error.code` and
 `error.message`.

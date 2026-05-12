@@ -9,5 +9,5 @@ fi
 host="$1"
 
 ssh -T -o BatchMode=yes -o ConnectTimeout=10 "$host" \
-  '~/.openclaw/bin/symphony-ask-openclaw-agent' < samples/sample-request.json |
+  '~/.openclaw/bin/orchestra-ask-openclaw-agent' < samples/sample-request.json |
   python3 -m json.tool

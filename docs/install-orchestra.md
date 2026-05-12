@@ -1,7 +1,7 @@
 # Install Orchestra
 
 This is the install path for another machine that should run its own local
-Symphony instance with its own Linear token and Codex agents.
+Orchestra instance with its own Linear token and Codex agents.
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@ Symphony instance with its own Linear token and Codex agents.
 - Git
 - GitHub CLI (`gh`), authenticated for PR creation
 - Codex CLI, already authenticated
-- `mise` for Elixir/Erlang; `orchestra install-symphony` installs it if missing
+- `mise` for Elixir/Erlang; `orchestra install-runner` installs it if missing
 - Linear personal API key
 
 ## Install CLI
@@ -83,7 +83,7 @@ This creates:
 ```
 
 The generated `WORKFLOW.md` always contains `api_key: $LINEAR_API_KEY`. If you
-entered a key during init, `orchestra run` injects it into Symphony's environment
+entered a key during init, `orchestra run` injects it into Orchestra's environment
 from `config.json`; it is not written into `WORKFLOW.md`.
 
 The GitHub repo for PRs is the configured target repo. Orchestra writes a
@@ -126,7 +126,7 @@ orchestra trace event \
 ```
 
 The Linear state names are configurable at init. Orchestra uses the ready state
-to decide what Symphony should pick up, the working state while an agent is
+to decide what the runner should pick up, the working state while an agent is
 running, and the complete state after a PR exists and validation is complete.
 The complete state is a handoff state, not active work. Orchestra does not tell
 agents to move Linear issues to terminal states such as `Done`.
@@ -143,8 +143,8 @@ approval policy `never`. This is necessary for the local runner to write `.git`,
 use the network, push branches, and create GitHub PRs without a human approval
 prompt.
 
-During `orchestra install-symphony` and `orchestra run`, Orchestra patches the
-local Symphony checkout to honor Linear dependency order before dispatch. Issues
+During `orchestra install-runner` and `orchestra run`, Orchestra patches the
+local runner checkout to honor Linear dependency order before dispatch. Issues
 with unresolved non-terminal `blocked by` relations are skipped even if their
 state is otherwise active.
 
@@ -160,30 +160,44 @@ orchestra set-linear-key
 orchestra doctor
 ```
 
-## Install Symphony
+## Install Runner
 
 ```bash
-orchestra install-symphony
+orchestra install-runner
 ```
 
-This clones `https://github.com/openai/symphony.git` into
-`~/.orchestra/symphony` and builds the Elixir implementation.
+This clones the upstream runner into `~/.orchestra/runner` and builds the
+Elixir implementation.
 
 If `mise` is not installed, this command installs it first and then uses it to
-install the Elixir/Erlang versions required by Symphony. Use
+install the Elixir/Erlang versions required by Orchestra. Use
 `--no-install-mise` to disable that behavior.
 
 To verify clone layout without building Elixir:
 
 ```bash
-orchestra install-symphony --skip-build
+orchestra install-runner --skip-build
 ```
 
 ## Run
 
 ```bash
-orchestra run
+orchestra up
 ```
 
-The first goal is local Symphony + local Codex agents. OpenClaw agents wiring can be added
-later by changing the generated `WORKFLOW.md` and using the wrapper docs.
+`orchestra up` checks whether the installed Orchestra CLI has a newer version
+available, offers to apply it, regenerates `WORKFLOW.md` from config after a
+successful update, then starts the local runner.
+
+Use `orchestra run` when you want to skip the update check.
+
+To check or apply updates directly:
+
+```bash
+orchestra update --check
+orchestra update --yes
+```
+
+The first goal is local Orchestra + local Codex agents. OpenClaw agents wiring
+can be added later by changing the generated `WORKFLOW.md` and using the wrapper
+docs.
