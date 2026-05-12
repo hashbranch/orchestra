@@ -52,7 +52,7 @@ By default the installer tracks the latest `v*` release tag. To pin a version or
 dogfood `main`:
 
 ```bash
-ORCHESTRA_VERSION=v0.2.1 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+ORCHESTRA_VERSION=v0.2.2 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ORCHESTRA_VERSION=main curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ```
 

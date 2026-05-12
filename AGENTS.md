@@ -5,7 +5,7 @@ not the source of truth.
 
 ## Start Here
 
-- Product/spec source: `orchestra-openclaw-agents-v1-spec.md`
+- Product/spec source: `README.md` and `docs/install-orchestra.md`
 - Architecture map: `ARCHITECTURE.md`
 - Documentation index: `docs/index.md`
 - Install guide: `docs/install-orchestra.md`
@@ -14,11 +14,9 @@ not the source of truth.
 ## Working Rules
 
 - Codex owns edits in this workspace.
-- OpenClaw agents are advisory only and must not modify the active workspace.
 - Treat request and response JSON schemas as boundary contracts.
 - Prefer small vertical slices with tests over broad speculative scaffolding.
 - Keep diagnostics on stderr and machine-readable responses on stdout.
-- Do not introduce network exposure for OpenClaw agents in V1; use Tailscale SSH only.
 - Record durable product, workflow, and architecture decisions in `docs/decisions/`
   when implementation behavior changes. Do not leave decisions only in chat,
   generated prompts, or code comments.
@@ -42,6 +40,9 @@ not the source of truth.
   agent decision notes, not hidden reasoning. Use `orchestra trace event` for
   auditable handoff decisions; see
   `docs/decisions/0008-auditable-workflow-traces.md`.
+- Keep archived prototype work out of the public CLI and package until it is
+  supported as a first-class agent runtime. Archived notes live under
+  `docs/archive/`.
 
 ## Agent Skills
 
@@ -58,7 +59,7 @@ Linear, or another tracker, map labels in `docs/agents/triage-labels.md`.
 ### Domain Docs
 
 Single-context repo. Read `ARCHITECTURE.md`, then `docs/index.md`, then the
-specific plan or decision doc needed for the task. See `docs/agents/domain.md`.
+specific decision doc needed for the task. See `docs/agents/domain.md`.
 
 ## Validation
 

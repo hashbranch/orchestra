@@ -5,9 +5,6 @@ export PYTHONDONTWRITEBYTECODE=1
 
 scripts/test
 
-python3 -m json.tool samples/sample-request.json >/dev/null
-python3 -m json.tool schemas/ask_openclaw_agent.tool.schema.json >/dev/null
-
 python3 -m orchestra_cli.main --home /tmp/orchestra-validate init \
   --linear-project-slug validate-project \
   --target-repo https://github.com/example/repo.git \
@@ -17,7 +14,6 @@ python3 -m orchestra_cli.main --home /tmp/orchestra-validate show paths >/dev/nu
 python3 -m orchestra_cli.main --home /tmp/orchestra-validate show workflow >/dev/null
 python3 -m orchestra_cli.main github pr-feedback wait --help >/dev/null
 python3 -m orchestra_cli.main github reviewers ensure --help >/dev/null
-python3 -m orchestra_cli.main github pr-review dispatch --help >/dev/null
 python3 -m orchestra_cli.main pr-feedback wait --help >/dev/null
 python3 -m orchestra_cli.main trace event --help >/dev/null
 python3 -m orchestra_cli --help >/dev/null
@@ -25,15 +21,8 @@ sh -n scripts/install
 test -x scripts/install-orchestra
 test -x scripts/install
 
-OPENCLAW_BIN=tests/fixtures/fake-openclaw \
-  bin/orchestra-ask-openclaw-agent < samples/sample-request.json >/tmp/orchestra-openclaw-agent-smoke-response.json
-
-python3 -m json.tool /tmp/orchestra-openclaw-agent-smoke-response.json >/dev/null
-
-python3 -c 'import json; r=json.load(open("/tmp/orchestra-openclaw-agent-smoke-response.json")); assert r["status"] == "completed"; assert r["requestId"] == "test-001"; assert r["instructionsForCodex"]'
-
 test -f AGENTS.md
 test -f ARCHITECTURE.md
 test -f docs/index.md
-test -f docs/decisions/0001-openclaw-agents-are-advisory.md
-test -f docs/plans/active/openclaw-agents-v1-harness.md
+test -f docs/decisions/0003-honor-linear-blockers-before-dispatch.md
+test -d docs/archive

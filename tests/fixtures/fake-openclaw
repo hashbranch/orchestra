@@ -1,4 +1,0 @@
-#!/usr/bin/env sh
-set -eu
-
-printf '%s\n' '{"summary":"fake OpenClaw agent review","blocking":false,"risks":[],"recommendations":["Harness smoke path is wired."],"instructionsForCodex":["Keep OpenClaw agents advisory-only in V1."],"needsHuman":false}'

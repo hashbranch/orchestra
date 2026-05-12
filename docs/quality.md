@@ -2,8 +2,7 @@
 
 ## Current Grade
 
-Prototype harness: usable for local wrapper development and ready for Orchestra
-integration work.
+Prototype harness: usable for local Orchestra install and runner workflow work.
 
 ## Strengths
 
@@ -15,10 +14,9 @@ integration work.
 ## Gaps
 
 - No CI runner is configured yet.
-- No real Tailscale SSH smoke test has been captured.
-- Orchestra runner dynamic tool implementation is documented but not present.
-- Response schema is enforced by tests and normalization code, not a standalone
-  response JSON schema.
+- The upstream runner patch should be validated against the real runner test
+  suite.
+- Non-Codex agent runtimes are not supported yet.
 
 ## Bar For Future Changes
 
