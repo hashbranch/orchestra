@@ -347,7 +347,13 @@ def cmd_install_runner(args: argparse.Namespace) -> int:
         legacy_checkout.rename(checkout)
 
     if checkout.exists():
-        run(["git", "-C", str(checkout), "fetch", "--all", "--tags"])
+        if not (checkout / ".git").is_dir():
+            print(f"Replacing non-git runner directory at {checkout}.")
+            remove_path(checkout)
+            home.mkdir(parents=True, exist_ok=True)
+            run(["git", "clone", args.source, str(checkout)])
+        else:
+            run(["git", "-C", str(checkout), "fetch", "--all", "--tags"])
     else:
         home.mkdir(parents=True, exist_ok=True)
         run(["git", "clone", args.source, str(checkout)])
@@ -1090,6 +1096,13 @@ def run_shell(command: str) -> None:
     else:
         print("+ " + command)
         subprocess.run(command, shell=True, check=True)
+
+
+def remove_path(path: Path) -> None:
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    else:
+        path.unlink()
 
 
 def check_path(label: str, path: Path, must_exist: bool) -> dict[str, Any]:

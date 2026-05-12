@@ -3,7 +3,7 @@ set -eu
 
 repo_url="${ORCHESTRA_REPO_URL:-https://github.com/hashbranch/orchestra.git}"
 install_dir="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"
-home_dir="${ORCHESTRA_HOME:-$HOME/.orchestra}"
+home_dir="${ORCHESTRA_INSTALL_HOME:-$HOME/.orchestra}"
 install_ref="${ORCHESTRA_VERSION:-latest}"
 python_bin="${PYTHON:-python3}"
 
@@ -22,6 +22,10 @@ printf '  Repo: %s\n' "$repo_url"
 printf '  Source: %s\n' "$install_dir"
 printf '  Home: %s\n' "$home_dir"
 printf '  Version: %s\n' "$install_ref"
+
+if [ -n "${ORCHESTRA_HOME:-}" ] && [ -z "${ORCHESTRA_INSTALL_HOME:-}" ]; then
+  printf '  Note: ignoring ORCHESTRA_HOME=%s during install; set ORCHESTRA_INSTALL_HOME to override the install home.\n' "$ORCHESTRA_HOME"
+fi
 
 if [ -d "$install_dir/.git" ]; then
   printf 'Updating existing checkout...\n'

@@ -514,6 +514,42 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertIn("issue_blocked_by_non_terminal?", patched)
             self.assertNotIn("todo_issue_blocked_by_non_terminal?", patched)
 
+    def test_install_runner_replaces_stale_non_git_runner_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "source"
+            home = Path(tmp) / "home"
+            stale_runner = home / "runner"
+            stale_runner.mkdir(parents=True)
+            (stale_runner / "stale.txt").write_text("not a checkout\n", encoding="utf-8")
+            (source / "elixir").mkdir(parents=True)
+            orchestrator = source / "elixir" / "lib" / upstream_elixir_app_dir() / "orchestrator.ex"
+            orchestrator.parent.mkdir(parents=True)
+            (source / "README.md").write_text("source\n", encoding="utf-8")
+            (source / "elixir" / "README.md").write_text("elixir\n", encoding="utf-8")
+            orchestrator.write_text(ORCHESTRATOR_WITH_TODO_BLOCKER, encoding="utf-8")
+
+            subprocess.run(["git", "init", "-b", "main"], cwd=source, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=source, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=source, check=True)
+            subprocess.run(["git", "add", "."], cwd=source, check=True)
+            subprocess.run(["git", "commit", "-m", "initial"], cwd=source, check=True, capture_output=True)
+
+            with mock.patch.dict(os.environ, {"ORCHESTRA_QUIET": "1"}):
+                exit_code = main(
+                    [
+                        "--home",
+                        str(home),
+                        "repair-runner",
+                        "--source",
+                        str(source),
+                        "--skip-build",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue((home / "runner" / ".git").is_dir())
+            self.assertFalse((home / "runner" / "stale.txt").exists())
+
     def test_runner_blocker_patch_skips_any_state_with_unresolved_blockers(self):
         with tempfile.TemporaryDirectory() as tmp:
             elixir = Path(tmp) / "elixir"
