@@ -14,10 +14,10 @@ Symphony instance with its own Linear token and Codex agents.
 
 ## Install CLI
 
-One-line install from GitHub while the repo is private:
+One-line install:
 
 ```bash
-sh -c 'd="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"; mkdir -p "$(dirname "$d")"; if [ -d "$d/.git" ]; then git -C "$d" pull --ff-only; else gh repo clone hashbranch/orchestra "$d"; fi; "$d/scripts/install-orchestra"'
+curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ```
 
 This clones or updates Orchestra under `~/.orchestra/source`, installs the
@@ -26,10 +26,10 @@ when needed. The directory is computed from your active Python install, not
 hardcoded. Open a new terminal after install, or run the `export PATH=...` line
 printed by the installer for the current terminal.
 
-If this repo is made public later, this shorter form also works:
+Authenticated/private fallback:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | sh
+sh -c 'd="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"; mkdir -p "$(dirname "$d")"; if [ -d "$d/.git" ]; then git -C "$d" pull --ff-only; else gh repo clone hashbranch/orchestra "$d"; fi; "$d/scripts/install-orchestra"'
 ```
 
 From an existing checkout:

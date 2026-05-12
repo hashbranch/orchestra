@@ -37,22 +37,22 @@ scripts/test
 
 ## Install On Another Machine
 
-One-line install from GitHub while the repo is private:
+One-line install:
 
 ```bash
-sh -c 'd="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"; mkdir -p "$(dirname "$d")"; if [ -d "$d/.git" ]; then git -C "$d" pull --ff-only; else gh repo clone hashbranch/orchestra "$d"; fi; "$d/scripts/install-orchestra"'
+curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ```
 
-That clones or updates Orchestra under `~/.orchestra/source`, installs
-the Python package, and adds Python's user script directory to your shell profile
+That clones or updates Orchestra under `~/.orchestra/source`, installs the
+Python package, and adds Python's user script directory to your shell profile
 when needed. The installer computes that directory from your active Python
 install; it is not hardcoded. Open a new terminal after install, or run the
 `export PATH=...` line printed by the installer for the current terminal.
 
-If this repo is made public later, this shorter form also works:
+Authenticated/private fallback:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | sh
+sh -c 'd="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"; mkdir -p "$(dirname "$d")"; if [ -d "$d/.git" ]; then git -C "$d" pull --ff-only; else gh repo clone hashbranch/orchestra "$d"; fi; "$d/scripts/install-orchestra"'
 ```
 
 From an existing Git checkout:
