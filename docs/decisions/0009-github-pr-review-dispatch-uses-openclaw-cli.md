@@ -1,4 +1,4 @@
-# 0008: GitHub PR review dispatch uses the OpenClaw CLI
+# 0009: GitHub PR review dispatch uses the OpenClaw CLI
 
 ## Status
 
