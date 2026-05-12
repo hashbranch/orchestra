@@ -11,6 +11,12 @@
 - Decide whether Orchestra should pin the upstream runner by commit or track a fork.
 - Add an optional `orchestra init --from-linear-url` parser for project URLs.
 - Replace Orchestra's local runner source patch with an upstream runner release once unresolved blocker filtering applies to every active state upstream.
+- Preserve the update contract during any Go CLI migration: the one-line
+  installer, `~/.orchestra/source`, and `orchestra update` / `orchestra up`
+  must remain stable across the handoff.
+- Design first-class agent runtime configuration for non-Codex CLIs. Claude CLI
+  should be supported through a runtime adapter or a compatible app-server
+  command, not by overloading Codex-specific config names.
 
 ## Closed
 

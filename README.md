@@ -1,31 +1,135 @@
 # Orchestra
 
-Orchestra is a small bootstrap CLI for installing and running a local
-Linear-driven Codex agent harness on another machine. It was inspired by OpenAI
-Symphony and currently uses that upstream runner internally, but the public
-workflow language in this repo is Orchestra.
+Orchestra installs and runs a local Linear-driven Codex automation harness. It
+watches a configured Linear project, picks up eligible issues, creates isolated
+workspaces from a target GitHub repo, runs Codex agents locally, and drives work
+to pull requests.
 
-## Implemented
+Orchestra is intended for teams that want repository-local implementation agents
+running on their own machine or workstation, with their own GitHub, Linear, and
+Codex credentials. It was inspired by OpenAI Symphony and currently uses that
+upstream runner internally, but the public workflow language in this repo is
+Orchestra.
 
-- Installable `orchestra` CLI
-- Local config and `WORKFLOW.md` generation
-- Runner clone/build/run commands
-- Local prerequisite checks via `orchestra doctor`
-- OpenClaw-agent-side wrapper executable: `bin/orchestra-ask-openclaw-agent`
-- Request validation for the V1 schema
-- Prompt contract that keeps OpenClaw agents advisory only
-- OpenClaw invocation with deterministic `orchestra-<issue-identifier>` session IDs
-- Response normalization into the V1 JSON response schema
-- Failure wrapping for invalid requests, OpenClaw timeout/failure, and malformed output
-- Sample request payload: `samples/sample-request.json`
-- Orchestra-facing tool schema: `schemas/ask_openclaw_agent.tool.schema.json`
-- Example participant config: `config/openclaw-participants.example.yaml`
-- Integration design note: `docs/orchestra-runner-integration-design.md`
-- Try-it-out runbook: `docs/try-it-out.md`
-- Unit tests for the wrapper behavior
-- GitHub PR review dispatch helper: `orchestra github pr-review dispatch`
+## What Orchestra Does
 
-## Local Test
+- Installs a local runner and CLI under `~/.orchestra`
+- Initializes a Linear project, Linear API key, target GitHub repo, and agent
+  concurrency setting
+- Generates a local `WORKFLOW.md` from config
+- Starts a local issue runner with `orchestra up`
+- Creates one workspace per active issue under `~/.orchestra/workspaces`
+- Instructs Codex agents to commit, push, open PRs, request reviewers, wait for
+  PR feedback, and move Linear issues to the configured handoff state
+- Honors Linear blockers before dispatch so dependent tickets do not run out of
+  order
+- Provides GitHub helpers for reviewer assignment, PR feedback collection, and
+  PR review dispatch
+- Records structured trace events for workflow debugging
+- Updates itself through `orchestra update` or the startup flow in `orchestra up`
+
+## Install
+
+Run the one-line installer from any directory:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+```
+
+That clones or updates Orchestra under `~/.orchestra/source`, installs the
+Python package, installs the local runner under `~/.orchestra/runner`, installs
+`mise` if no Elixir toolchain is available, and adds Python's user script
+directory to your shell profile when needed.
+
+Open a new terminal after install, or run the `export PATH=...` line printed by
+the installer for the current terminal.
+
+To install somewhere other than `~/.orchestra`, set `ORCHESTRA_INSTALL_HOME`.
+`ORCHESTRA_HOME` is a runtime override for testing/running an alternate home and
+is intentionally ignored by the installer.
+
+By default the installer tracks the latest `v*` release tag. To pin a version or
+dogfood `main`:
+
+```bash
+ORCHESTRA_VERSION=v0.2.1 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+ORCHESTRA_VERSION=main curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+```
+
+From an existing Git checkout:
+
+```bash
+scripts/install
+```
+
+## Configure
+
+Run:
+
+```bash
+orchestra init
+```
+
+The initializer asks for:
+
+- Linear API key
+- Linear project slug
+- target GitHub repo URL
+- max concurrent agents
+
+The Linear API key is stored in `~/.orchestra/config.json` and injected into the
+runner environment at runtime. It is not written into `WORKFLOW.md`.
+
+The target repo is the repo Codex clones for each issue workspace and the repo
+where PRs are opened. The intended mapping is one Orchestra configuration per
+Linear project/repo pair.
+
+## Run
+
+Check the install and start Orchestra:
+
+```bash
+orchestra doctor
+orchestra up
+```
+
+`orchestra up` checks the installed release channel for an update, offers to
+apply it or skip it, regenerates `WORKFLOW.md` from config after a successful
+update, then starts the local runner.
+
+Use `orchestra run` only when you want to skip the update check.
+
+## Update
+
+Explicit update commands:
+
+```bash
+orchestra update --check
+orchestra update
+orchestra update --yes
+```
+
+Future CLI implementations must preserve this update contract. The stable
+boundary is the one-line installer, `~/.orchestra/source`, and the
+`orchestra update` / `orchestra up` commands.
+
+## Files
+
+By default Orchestra writes to:
+
+```text
+~/.orchestra/
+  source/
+  runner/
+  config.json
+  WORKFLOW.md
+  workspaces/
+  traces/
+```
+
+## Validation
+
+For local development:
 
 ```bash
 scripts/validate
@@ -36,172 +140,3 @@ For the test suite only:
 ```bash
 scripts/test
 ```
-
-## Install On Another Machine
-
-One-line install:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
-```
-
-That clones or updates Orchestra under `~/.orchestra/source`, installs the
-Python package, installs the local runner under `~/.orchestra/runner`, and adds
-Python's user script directory to your shell profile when needed. The installer
-computes that directory from your active Python install; it is not hardcoded.
-Open a new terminal after install, or run the `export PATH=...` line printed by
-the installer for the current terminal.
-
-To install somewhere other than `~/.orchestra`, set `ORCHESTRA_INSTALL_HOME`.
-`ORCHESTRA_HOME` is a runtime override for testing/running an alternate home and
-is intentionally ignored by the installer.
-
-By default the installer tracks the latest `v*` release tag. If no release tag
-exists yet, it falls back to `main`. To pin a version or dogfood `main`:
-
-```bash
-ORCHESTRA_VERSION=v0.2.1 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
-ORCHESTRA_VERSION=main curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
-```
-
-Authenticated/private fallback:
-
-```bash
-sh -c 'd="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"; mkdir -p "$(dirname "$d")"; if [ -d "$d/.git" ]; then git -C "$d" pull --ff-only; else gh repo clone hashbranch/orchestra "$d"; fi; "$d/scripts/install"'
-```
-
-From an existing Git checkout:
-
-```bash
-scripts/install
-```
-
-This performs the same install using your local checkout.
-
-Initialize a local Orchestra install:
-
-```bash
-orchestra init
-
-orchestra doctor
-orchestra up
-```
-
-`orchestra init` prompts for the Linear API key, Linear project slug, target
-repo URL, and max concurrent agents. The key is stored in `~/.orchestra/config.json` but the generated
-`WORKFLOW.md` always uses `$LINEAR_API_KEY`; `orchestra run` injects the stored
-key into the runner environment. You can also pass setup values as flags.
-
-The target repo is also the GitHub PR destination: Orchestra clones it into each
-issue workspace, so its `origin` remote is where `gh pr create` points.
-
-Linear state names are configurable during `orchestra init`, including ready,
-working, blocked, complete, and terminal states. The default complete state is
-`Dev Complete`.
-
-Orchestra's generated workflow runs Codex with `danger-full-access`. That is
-required for unattended GitHub delivery because the agent has to write Git
-metadata, reach GitHub, push branches, and open PRs from the local machine.
-
-Orchestra also patches the local runner checkout so Linear `blocked by`
-relations are honored before dispatch. Any issue with unresolved non-terminal
-blockers is skipped, even when the issue is otherwise in an active state.
-
-Use `orchestra up` for normal starts. It checks the installed release channel for
-an Orchestra update, offers to apply it, regenerates `WORKFLOW.md` from config
-when an update is applied, then starts the local runner. Use `orchestra run` to
-skip the update check.
-
-```bash
-orchestra update --check
-orchestra update --yes
-```
-
-To update the stored Linear key later:
-
-```bash
-orchestra set-linear-key
-```
-
-The installer installs `mise` automatically if no Elixir toolchain is found.
-
-By default Orchestra writes to `~/.orchestra`:
-
-```text
-~/.orchestra/
-  source/
-  config.json
-  WORKFLOW.md
-  workspaces/
-  runner/
-```
-
-To run against a real OpenClaw agent host install:
-
-```bash
-bin/orchestra-ask-openclaw-agent < samples/sample-request.json
-```
-
-The wrapper accepts optional overrides:
-
-```bash
-OPENCLAW_BIN=/path/to/openclaw OPENCLAW_AGENT=main OPENCLAW_TIMEOUT_SECONDS=180 \
-  bin/orchestra-ask-openclaw-agent < samples/sample-request.json
-```
-
-## Dispatch PR Review Requests To OpenClaw
-
-Orchestra can normalize a GitHub pull request review event and ask an OpenClaw
-agent to review the PR. V1 keeps the OpenClaw side behind the CLI/Tailscale SSH
-boundary rather than exposing an agent HTTP endpoint.
-
-Explicit dispatch:
-
-```bash
-orchestra github pr-review dispatch \
-  --repo hashbranch/example \
-  --pr 42 \
-  --url https://github.com/hashbranch/example/pull/42 \
-  --openclaw-host clawd-openclaw \
-  --agent main \
-  --deliver \
-  --reply-channel slack \
-  --reply-to D0ACBEMKLBW
-```
-
-GitHub webhook payload dispatch:
-
-```bash
-orchestra github pr-review dispatch \
-  --event-file /path/to/pull_request.json \
-  --match-reviewer clawd-reviewer \
-  --openclaw-host clawd-openclaw
-```
-
-Use `--dry-run` to inspect the normalized request and command without contacting
-OpenClaw.
-
-## Install On An OpenClaw Agent Host
-
-Copy this folder to an OpenClaw agent host or package the wrapper into `~/.openclaw/bin`. The target
-entry point from the spec is:
-
-```bash
-~/.openclaw/bin/orchestra-ask-openclaw-agent
-```
-
-If `openclaw` is not available in noninteractive SSH shells, set `OPENCLAW_BIN` in
-the wrapper environment or update the OpenClaw agent host's shell profile for noninteractive SSH.
-
-## Runner Integration Boundary
-
-The upstream runner codebase is not present in this folder, so the dynamic tool
-is not implemented here. The next implementation slice should:
-
-- Add `openclaw_participants.<name>` config with host, command, and timeout.
-- Expose `ask_openclaw_agent` with the smaller tool schema from the spec.
-- Enrich tool calls with issue metadata, repo metadata, request ID, branch, and
-  standard constraints.
-- Invoke SSH with `BatchMode=yes`, `ConnectTimeout=10`, and `-T`.
-- Normalize SSH failures as `SSH_UNREACHABLE` and malformed wrapper responses as
-  `MALFORMED_RESPONSE`.
