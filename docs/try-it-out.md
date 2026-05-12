@@ -36,7 +36,6 @@ openclaw_participants:
 Then install and run the local runner:
 
 ```bash
-orchestra install-runner
 orchestra up
 ```
 

@@ -3,6 +3,7 @@ set -eu
 
 repo_url="${ORCHESTRA_REPO_URL:-https://github.com/hashbranch/orchestra.git}"
 install_dir="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"
+home_dir="${ORCHESTRA_HOME:-$HOME/.orchestra}"
 python_bin="${PYTHON:-python3}"
 
 need() {
@@ -18,6 +19,7 @@ need "$python_bin"
 printf 'Installing Orchestra\n'
 printf '  Repo: %s\n' "$repo_url"
 printf '  Source: %s\n' "$install_dir"
+printf '  Home: %s\n' "$home_dir"
 
 if [ -d "$install_dir/.git" ]; then
   printf 'Updating existing checkout...\n'
@@ -38,6 +40,9 @@ PYTHON="$python_bin" scripts/install-orchestra
 
 scripts_dir="$("$python_bin" -c 'import site; print(site.USER_BASE + "/bin")')"
 
+printf '\nInstalling local runner...\n'
+"$python_bin" -m orchestra_cli.main --home "$home_dir" repair-runner
+
 printf '\nInstall complete.\n'
 if command -v orchestra >/dev/null 2>&1; then
   printf 'orchestra is available at %s\n' "$(command -v orchestra)"
@@ -49,5 +54,4 @@ fi
 printf 'Next commands:\n'
 printf '  orchestra init\n'
 printf '  orchestra doctor\n'
-printf '  orchestra install-runner\n'
 printf '  orchestra up\n'

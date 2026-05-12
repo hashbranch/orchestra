@@ -11,6 +11,8 @@ This directory is the agent-readable knowledge base for the repository.
     blocks dispatch when Linear dependencies are unresolved.
   - `decisions/0009-github-pr-review-dispatch-uses-openclaw-cli.md`: how GitHub
     PR review requests reach OpenClaw agents in V1.
+  - `decisions/0010-named-instances-share-the-runner.md`: how multiple project
+    and repo configurations should run on one machine.
 - `plans/`: active and completed execution plans.
 - `tech-debt-tracker.md`: known cleanup and hardening work.
 - `quality.md`: current quality bar and verification gaps.

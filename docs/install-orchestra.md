@@ -9,10 +9,10 @@ Orchestra instance with its own Linear token and Codex agents.
 - Git
 - GitHub CLI (`gh`), authenticated for PR creation
 - Codex CLI, already authenticated
-- `mise` for Elixir/Erlang; `orchestra install-runner` installs it if missing
+- `mise` for Elixir/Erlang; the Orchestra installer installs it if missing
 - Linear personal API key
 
-## Install CLI
+## Install Orchestra
 
 One-line install:
 
@@ -21,25 +21,25 @@ curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/i
 ```
 
 This clones or updates Orchestra under `~/.orchestra/source`, installs the
-Python package, and adds Python's user script directory to your shell profile
-when needed. The directory is computed from your active Python install, not
-hardcoded. Open a new terminal after install, or run the `export PATH=...` line
-printed by the installer for the current terminal.
+Python package, installs the local runner under `~/.orchestra/runner`, and adds
+Python's user script directory to your shell profile when needed. The directory
+is computed from your active Python install, not hardcoded. Open a new terminal
+after install, or run the `export PATH=...` line printed by the installer for
+the current terminal.
 
 Authenticated/private fallback:
 
 ```bash
-sh -c 'd="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"; mkdir -p "$(dirname "$d")"; if [ -d "$d/.git" ]; then git -C "$d" pull --ff-only; else gh repo clone hashbranch/orchestra "$d"; fi; "$d/scripts/install-orchestra"'
+sh -c 'd="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"; mkdir -p "$(dirname "$d")"; if [ -d "$d/.git" ]; then git -C "$d" pull --ff-only; else gh repo clone hashbranch/orchestra "$d"; fi; "$d/scripts/install"'
 ```
 
 From an existing checkout:
 
 ```bash
-scripts/install-orchestra
+scripts/install
 ```
 
-This installs the package and adds Python's user script directory to your shell
-profile when needed.
+This performs the same install using your local checkout.
 
 ## Initialize
 
@@ -143,10 +143,10 @@ approval policy `never`. This is necessary for the local runner to write `.git`,
 use the network, push branches, and create GitHub PRs without a human approval
 prompt.
 
-During `orchestra install-runner` and `orchestra run`, Orchestra patches the
-local runner checkout to honor Linear dependency order before dispatch. Issues
-with unresolved non-terminal `blocked by` relations are skipped even if their
-state is otherwise active.
+During install and `orchestra run`, Orchestra patches the local runner checkout
+to honor Linear dependency order before dispatch. Issues with unresolved
+non-terminal `blocked by` relations are skipped even if their state is otherwise
+active.
 
 To rotate or add the key later:
 
@@ -158,25 +158,6 @@ orchestra set-linear-key
 
 ```bash
 orchestra doctor
-```
-
-## Install Runner
-
-```bash
-orchestra install-runner
-```
-
-This clones the upstream runner into `~/.orchestra/runner` and builds the
-Elixir implementation.
-
-If `mise` is not installed, this command installs it first and then uses it to
-install the Elixir/Erlang versions required by Orchestra. Use
-`--no-install-mise` to disable that behavior.
-
-To verify clone layout without building Elixir:
-
-```bash
-orchestra install-runner --skip-build
 ```
 
 ## Run

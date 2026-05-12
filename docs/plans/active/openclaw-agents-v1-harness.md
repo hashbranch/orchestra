@@ -22,8 +22,8 @@ as a later add-on.
 - `scripts/validate` passes locally.
 - Agents can find the spec, architecture, schemas, and integration boundary from
   `AGENTS.md`.
-- Another machine can install the CLI and run `orchestra init`, `orchestra doctor`,
-  `orchestra install-runner`, and `orchestra up`.
+- Another machine can install Orchestra and run `orchestra init`,
+  `orchestra doctor`, and `orchestra up`.
 - The wrapper can be smoke-tested without a real OpenClaw install.
 - Known gaps are tracked in `docs/tech-debt-tracker.md`.
 
@@ -41,6 +41,6 @@ as a later add-on.
 - [x] Add GitHub PR review dispatch helper.
 - [x] Test console scripts in a temporary virtualenv.
 - [ ] Implement Orchestra runner dynamic tool in the real runner codebase.
-- [ ] Run `orchestra install-runner` on a machine with `mise` or `mix`.
+- [ ] Run the one-line installer on a machine without preinstalled `mise`.
 - [ ] Run a real local Orchestra issue loop with Linear and Codex auth.
 - [ ] Run an end-to-end Tailscale SSH test against an OpenClaw agent host.

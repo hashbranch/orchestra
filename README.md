@@ -46,25 +46,25 @@ curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/i
 ```
 
 That clones or updates Orchestra under `~/.orchestra/source`, installs the
-Python package, and adds Python's user script directory to your shell profile
-when needed. The installer computes that directory from your active Python
-install; it is not hardcoded. Open a new terminal after install, or run the
-`export PATH=...` line printed by the installer for the current terminal.
+Python package, installs the local runner under `~/.orchestra/runner`, and adds
+Python's user script directory to your shell profile when needed. The installer
+computes that directory from your active Python install; it is not hardcoded.
+Open a new terminal after install, or run the `export PATH=...` line printed by
+the installer for the current terminal.
 
 Authenticated/private fallback:
 
 ```bash
-sh -c 'd="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"; mkdir -p "$(dirname "$d")"; if [ -d "$d/.git" ]; then git -C "$d" pull --ff-only; else gh repo clone hashbranch/orchestra "$d"; fi; "$d/scripts/install-orchestra"'
+sh -c 'd="${ORCHESTRA_INSTALL_DIR:-$HOME/.orchestra/source}"; mkdir -p "$(dirname "$d")"; if [ -d "$d/.git" ]; then git -C "$d" pull --ff-only; else gh repo clone hashbranch/orchestra "$d"; fi; "$d/scripts/install"'
 ```
 
 From an existing Git checkout:
 
 ```bash
-scripts/install-orchestra
+scripts/install
 ```
 
-This wraps `pip install --user .` and adds Python's user script directory to your
-shell profile when needed.
+This performs the same install using your local checkout.
 
 Initialize a local Orchestra install:
 
@@ -72,7 +72,6 @@ Initialize a local Orchestra install:
 orchestra init
 
 orchestra doctor
-orchestra install-runner
 orchestra up
 ```
 
@@ -112,8 +111,7 @@ To update the stored Linear key later:
 orchestra set-linear-key
 ```
 
-`orchestra install-runner` installs `mise` automatically if no Elixir toolchain
-is found. Use `--skip-build` when you only want to verify clone layout.
+The installer installs `mise` automatically if no Elixir toolchain is found.
 
 By default Orchestra writes to `~/.orchestra`:
 

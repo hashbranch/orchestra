@@ -31,8 +31,7 @@ Orchestra treats unresolved Linear blockers as a dispatch-level guard.
 - Generated workflows also instruct Codex not to continue implementation when
   unresolved blockers are discovered during an active run.
 - Until the upstream runner applies this behavior for every active state,
-  Orchestra patches the local runner checkout during `install-runner` and
-  `run`.
+  Orchestra patches the local runner checkout during install and `run`.
 
 ## Consequences
 

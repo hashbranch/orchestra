@@ -85,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     init_parser.add_argument("--force", action="store_true", help="Overwrite existing config.")
     init_parser.set_defaults(func=cmd_init)
 
-    install_parser = subcommands.add_parser("install-runner", help="Clone and build the local Orchestra runner.")
+    install_parser = subcommands.add_parser("repair-runner", help=argparse.SUPPRESS)
     install_parser.add_argument("--source", default=DEFAULT_RUNNER_REPO)
     install_parser.add_argument("--ref", help="Optional git ref to checkout after clone/fetch.")
     install_parser.add_argument("--force", action="store_true", help="Replace existing runner checkout.")
@@ -96,6 +96,17 @@ def main(argv: list[str] | None = None) -> int:
         help="Do not bootstrap mise automatically when no Elixir toolchain is found.",
     )
     install_parser.set_defaults(func=cmd_install_runner)
+    install_alias_parser = subcommands.add_parser("install-runner", help=argparse.SUPPRESS)
+    install_alias_parser.add_argument("--source", default=DEFAULT_RUNNER_REPO)
+    install_alias_parser.add_argument("--ref", help="Optional git ref to checkout after clone/fetch.")
+    install_alias_parser.add_argument("--force", action="store_true", help="Replace existing runner checkout.")
+    install_alias_parser.add_argument("--skip-build", action="store_true", help="Clone/update the runner without running mix build.")
+    install_alias_parser.add_argument(
+        "--no-install-mise",
+        action="store_true",
+        help="Do not bootstrap mise automatically when no Elixir toolchain is found.",
+    )
+    install_alias_parser.set_defaults(func=cmd_install_runner)
 
     doctor_parser = subcommands.add_parser("doctor", help="Check local prerequisites and install state.")
     doctor_parser.set_defaults(func=cmd_doctor)
@@ -394,7 +405,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     wf_path = (args.workflow or workflow_path(home)).expanduser()
 
     if not elixir_dir.exists():
-        print(f"Orchestra runner is not installed at {elixir_dir}. Run `orchestra install-runner` first.", file=sys.stderr)
+        print(f"Orchestra runner is not installed at {elixir_dir}. Re-run the Orchestra installer.", file=sys.stderr)
         return 1
     if not wf_path.exists():
         print(f"Workflow file does not exist at {wf_path}. Run `orchestra init` first.", file=sys.stderr)
@@ -940,7 +951,6 @@ def print_init_summary(home: Path, cfg_path: Path, wf_path: Path, config: dict[s
                 "",
                 "Next:",
                 "  orchestra doctor",
-                "  orchestra install-runner",
                 "  orchestra run --extra-arg=--i-understand-that-this-will-be-running-without-the-usual-guardrails",
             ]
         )
@@ -1042,7 +1052,7 @@ def check_elixir_toolchain() -> dict[str, Any]:
     return {
         "label": "mise or mix",
         "ok": False,
-        "detail": "not found; `orchestra install-runner` will try to install mise",
+        "detail": "not found; the Orchestra installer will try to install mise",
     }
 
 

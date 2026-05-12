@@ -440,7 +440,7 @@ class OrchestraCliTests(unittest.TestCase):
                     [
                         "--home",
                         str(home),
-                        "install-runner",
+                        "repair-runner",
                         "--source",
                         str(source),
                         "--skip-build",
