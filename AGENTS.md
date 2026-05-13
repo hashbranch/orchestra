@@ -38,7 +38,8 @@ not the source of truth.
   `docs/decisions/0006-agent-owned-pr-feedback-gate.md`.
 - Add built-in helpers under provider/domain namespaces such as
   `orchestra github ...`, `orchestra linear ...`, `orchestra git ...`, or
-  `orchestra validation ...`; see
+  `orchestra validation ...`. Put helper command wiring under
+  `cli/helpers/<provider>.py` instead of growing `cli/main.py`; see
   `docs/decisions/0007-provider-scoped-helper-commands.md`.
 - Capture workflow debugging evidence as structured trace events and explicit
   agent decision notes, not hidden reasoning. Use `orchestra trace event` for

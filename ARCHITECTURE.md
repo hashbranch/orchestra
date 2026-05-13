@@ -26,6 +26,10 @@ helpers, and runner source needed to run Orchestra safely.
 
 Install, init, run, update, GitHub helper, and trace commands.
 
+Provider-scoped helper command wiring lives under `cli/helpers/`. The root
+`cli/main.py` should stay focused on top-level command registration and shared
+install/runtime commands.
+
 ### `runner/`
 
 Local runner source. The current runner is the Elixir implementation inherited
