@@ -35,7 +35,7 @@ By default the installer tracks the latest `v*` release tag. If no release tag
 exists yet, it falls back to `main`. To pin a version or dogfood `main`:
 
 ```bash
-ORCHESTRA_VERSION=v0.2.2 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+ORCHESTRA_VERSION=v0.3.0 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ORCHESTRA_VERSION=main curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ```
 
@@ -93,6 +93,21 @@ This creates:
 ~/.orchestra/traces/
 ~/.orchestra/workspaces/
 ```
+
+By default Orchestra configures Codex. To generate the long-term mixed runtime
+contract for Codex and Claude:
+
+```bash
+orchestra init \
+  --agent-runtime both \
+  --max-concurrent-agents 6
+```
+
+Claude is configured without a model override by default, so the signed-in Claude
+CLI account controls the default model. Add `--claude-model` only when you want
+to pin one explicitly. Native execution of non-Codex runtimes requires runner
+support for `agent.runtimes`; current runner compatibility still uses the legacy
+Codex block when Codex is configured.
 
 The generated `WORKFLOW.md` always contains `api_key: $LINEAR_API_KEY`. If you
 entered a key during init, `orchestra run` injects it into Orchestra's environment

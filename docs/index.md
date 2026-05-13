@@ -10,6 +10,8 @@ This directory is the agent-readable knowledge base for the repository.
     blocks dispatch when Linear dependencies are unresolved.
   - `decisions/0010-named-instances-share-the-runner.md`: how multiple project
     and repo configurations should run on one machine.
+  - `decisions/0011-agent-runtimes-are-first-class.md`: how Codex, Claude, and
+    future agent CLIs should be configured and scheduled.
 - `archive/`: unsupported prototype notes that are not part of the public CLI
   or package.
 - `plans/`: local execution plans when work needs durable task state.

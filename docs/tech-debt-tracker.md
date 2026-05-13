@@ -11,9 +11,8 @@
 - Preserve the update contract during any Go CLI migration: the one-line
   installer, `~/.orchestra/source`, and `orchestra update` / `orchestra up`
   must remain stable across the handoff.
-- Design first-class agent runtime configuration for non-Codex CLIs. Claude CLI
-  should be supported through a runtime adapter or a compatible app-server
-  command, not by overloading Codex-specific config names.
+- Add native runner support for `agent.runtimes`, including Claude Code
+  invocation and round-robin scheduling across per-runtime concurrency limits.
 
 ## Closed
 
@@ -25,3 +24,4 @@
 - Patched local runner installs to skip active issues with unresolved Linear blockers.
 - Moved the unsupported agent participant prototype out of the package and
   public CLI surface into `docs/archive/`.
+- Added first-class generated agent runtime configuration for Codex and Claude.

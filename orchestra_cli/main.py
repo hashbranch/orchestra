@@ -65,6 +65,18 @@ def main(argv: list[str] | None = None) -> int:
         help="GitHub repo URL the runner should clone for each issue workspace; this becomes origin for PRs.",
     )
     init_parser.add_argument("--codex-command", default="codex app-server")
+    init_parser.add_argument(
+        "--agent-runtime",
+        choices=["codex", "claude", "both"],
+        default="codex",
+        help="Agent runtime set to configure. Claude runtime support requires a runner that understands agent.runtimes.",
+    )
+    init_parser.add_argument("--runtime-selection", choices=["round_robin"], default="round_robin")
+    init_parser.add_argument("--codex-max-concurrent", type=int)
+    init_parser.add_argument("--claude-command", default="claude")
+    init_parser.add_argument("--claude-max-concurrent", type=int)
+    init_parser.add_argument("--claude-model", help="Optional Claude model override. Omit to use the signed-in user's default.")
+    init_parser.add_argument("--claude-effort", help="Optional Claude effort override.")
     init_parser.add_argument("--max-concurrent-agents", type=int)
     init_parser.add_argument("--max-turns", type=int, default=20)
     init_parser.add_argument("--ready-state", default="Todo", help="Linear state the runner should pick up as ready work.")
@@ -249,6 +261,9 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     if linear_project_slug is None or target_repo is None or linear_api_key is None or max_concurrent_agents is None:
         return 2
+    runtimes = build_agent_runtimes(args, max_concurrent_agents)
+    if runtimes is None:
+        return 2
 
     config = {
         "linear_project_slug": linear_project_slug,
@@ -257,6 +272,8 @@ def cmd_init(args: argparse.Namespace) -> int:
         "workspace_root": str(workspaces_path(home)),
         "after_create": default_after_create(target_repo),
         "before_remove": "true",
+        "runtime_selection": args.runtime_selection,
+        "agent_runtimes": runtimes,
         "codex_command": args.codex_command,
         "codex_approval_policy": "never",
         "codex_thread_sandbox": "danger-full-access",
@@ -282,6 +299,70 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     print_init_summary(home, cfg_path, wf_path, config)
     return 0
+
+
+def build_agent_runtimes(args: argparse.Namespace, max_concurrent_agents: int) -> list[dict[str, Any]] | None:
+    if max_concurrent_agents < 1:
+        print("Max concurrent agents must be at least 1.", file=sys.stderr)
+        return None
+
+    selected = ["codex", "claude"] if args.agent_runtime == "both" else [args.agent_runtime]
+    default_caps = default_runtime_capacities(selected, max_concurrent_agents)
+    runtimes: list[dict[str, Any]] = []
+
+    if "codex" in selected:
+        codex_capacity = args.codex_max_concurrent or default_caps["codex"]
+        if codex_capacity < 1:
+            print("Codex max concurrency must be at least 1.", file=sys.stderr)
+            return None
+        runtimes.append(
+            {
+                "name": "codex",
+                "kind": "codex",
+                "command": args.codex_command,
+                "max_concurrent": codex_capacity,
+                "approval_policy": "never",
+                "thread_sandbox": "danger-full-access",
+                "turn_sandbox_policy": {"type": "dangerFullAccess"},
+            }
+        )
+
+    if "claude" in selected:
+        claude_capacity = args.claude_max_concurrent or default_caps["claude"]
+        if claude_capacity < 1:
+            print("Claude max concurrency must be at least 1.", file=sys.stderr)
+            return None
+        claude = {
+            "name": "claude",
+            "kind": "claude_code",
+            "command": args.claude_command,
+            "max_concurrent": claude_capacity,
+            "print": True,
+            "bare": True,
+            "output_format": "stream-json",
+            "permission_mode": "bypassPermissions",
+        }
+        if args.claude_model:
+            claude["model"] = args.claude_model
+        if args.claude_effort:
+            claude["effort"] = args.claude_effort
+        runtimes.append(claude)
+
+    return runtimes
+
+
+def default_runtime_capacities(selected: list[str], max_concurrent_agents: int) -> dict[str, int]:
+    if selected == ["codex"]:
+        return {"codex": max_concurrent_agents}
+    if selected == ["claude"]:
+        return {"claude": max_concurrent_agents}
+
+    codex_capacity = (max_concurrent_agents + 1) // 2
+    claude_capacity = max_concurrent_agents // 2
+    return {
+        "codex": max(1, codex_capacity),
+        "claude": max(1, claude_capacity),
+    }
 
 
 def cmd_install_runner(args: argparse.Namespace) -> int:
@@ -908,6 +989,8 @@ def print_init_summary(home: Path, cfg_path: Path, wf_path: Path, config: dict[s
                 f"  Linear project:        {config['linear_project_slug']}",
                 f"  GitHub target repo:    {config['target_repo']}",
                 f"  Max concurrent agents: {config['max_concurrent_agents']}",
+                f"  Runtime selection:     {config['runtime_selection']}",
+                f"  Runtimes:              {', '.join(runtime['name'] for runtime in config['agent_runtimes'])}",
                 "",
                 "Files",
                 f"  Home:       {home}",

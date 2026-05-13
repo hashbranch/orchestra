@@ -30,12 +30,10 @@ def workflow_text(config: dict[str, Any]) -> str:
         "agent:",
         f"  max_concurrent_agents: {int(config.get('max_concurrent_agents', 1))}",
         f"  max_turns: {int(config.get('max_turns', 20))}",
-        "codex:",
-        f"  command: {yaml_scalar(config.get('codex_command', 'codex app-server'))}",
-        f"  approval_policy: {yaml_scalar(config.get('codex_approval_policy', 'never'))}",
-        f"  thread_sandbox: {yaml_scalar(config.get('codex_thread_sandbox', 'danger-full-access'))}",
-        "  turn_sandbox_policy:",
-        *yaml_map(config.get("codex_turn_sandbox_policy", {"type": "dangerFullAccess"}), 4),
+        f"  runtime_selection: {yaml_scalar(config.get('runtime_selection', 'round_robin'))}",
+        "  runtimes:",
+        *runtime_list(config),
+        *legacy_codex_block(config),
         "---",
         "",
         prompt_body(states, reviewers),
@@ -70,6 +68,54 @@ def workflow_states(config: dict[str, Any]) -> dict[str, Any]:
         "blocked": states.get("blocked", "Blocked"),
         "terminal": states.get("terminal", ["Closed", "Cancelled", "Canceled", "Duplicate", "Done"]),
     }
+
+
+def runtime_list(config: dict[str, Any]) -> list[str]:
+    runtimes = config.get("agent_runtimes") or default_agent_runtimes(config)
+    lines: list[str] = []
+    for runtime in runtimes:
+        lines.append(f"    - name: {yaml_scalar(runtime['name'])}")
+        for key, value in runtime.items():
+            if key == "name":
+                continue
+            if isinstance(value, dict):
+                lines.append(f"      {key}:")
+                lines.extend(yaml_map(value, 8))
+            else:
+                lines.append(f"      {key}: {yaml_scalar(value)}")
+    return lines
+
+
+def default_agent_runtimes(config: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "name": "codex",
+            "kind": "codex",
+            "command": config.get("codex_command", "codex app-server"),
+            "max_concurrent": int(config.get("max_concurrent_agents", 1)),
+            "approval_policy": config.get("codex_approval_policy", "never"),
+            "thread_sandbox": config.get("codex_thread_sandbox", "danger-full-access"),
+            "turn_sandbox_policy": config.get("codex_turn_sandbox_policy", {"type": "dangerFullAccess"}),
+        }
+    ]
+
+
+def legacy_codex_block(config: dict[str, Any]) -> list[str]:
+    codex_runtime = next(
+        (runtime for runtime in (config.get("agent_runtimes") or default_agent_runtimes(config)) if runtime.get("kind") == "codex"),
+        None,
+    )
+    if codex_runtime is None:
+        return []
+
+    return [
+        "codex:",
+        f"  command: {yaml_scalar(codex_runtime.get('command', config.get('codex_command', 'codex app-server')))}",
+        f"  approval_policy: {yaml_scalar(codex_runtime.get('approval_policy', config.get('codex_approval_policy', 'never')))}",
+        f"  thread_sandbox: {yaml_scalar(codex_runtime.get('thread_sandbox', config.get('codex_thread_sandbox', 'danger-full-access')))}",
+        "  turn_sandbox_policy:",
+        *yaml_map(codex_runtime.get("turn_sandbox_policy", config.get("codex_turn_sandbox_policy", {"type": "dangerFullAccess"})), 4),
+    ]
 
 
 def prompt_body(states: dict[str, Any], reviewers: list[str]) -> str:

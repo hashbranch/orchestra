@@ -49,6 +49,7 @@ validation or setup step becomes important enough to repeat.
 
 - Named instances: see `docs/decisions/0010-named-instances-share-the-runner.md`.
 - Agent runtime adapters: future work should support non-Codex CLIs through a
-  first-class runtime abstraction.
+  first-class runtime abstraction; see
+  `docs/decisions/0011-agent-runtimes-are-first-class.md`.
 - Archived prototype work lives under `docs/archive/` and is not part of the
   supported package.

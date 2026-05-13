@@ -71,6 +71,9 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertEqual(config["states"]["ready"], "Todo")
             self.assertEqual(config["states"]["complete"], "Dev Complete")
             self.assertEqual(config["pr_reviewers"], ["vector-hb", "nathaniel-hb"])
+            self.assertEqual(config["runtime_selection"], "round_robin")
+            self.assertEqual(config["agent_runtimes"][0]["name"], "codex")
+            self.assertEqual(config["agent_runtimes"][0]["kind"], "codex")
             self.assertEqual(config["codex_thread_sandbox"], "danger-full-access")
             self.assertEqual(config["codex_turn_sandbox_policy"], {"type": "dangerFullAccess"})
             self.assertTrue((home / "workspaces").is_dir())
@@ -82,6 +85,8 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertNotIn("lin_api", workflow)
             self.assertIn("git clone --depth 1", workflow)
             self.assertIn("codex --config", workflow)
+            self.assertIn("runtime_selection: \"round_robin\"", workflow)
+            self.assertIn("kind: \"codex\"", workflow)
             self.assertIn('thread_sandbox: "danger-full-access"', workflow)
             self.assertIn('type: "dangerFullAccess"', workflow)
             self.assertIn("Always open a GitHub PR", workflow)
@@ -105,6 +110,73 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertIn("feedback_items_reviewed", workflow)
             self.assertIn("After moving the Linear issue to `Dev Complete`, stop work", workflow)
             self.assertIn("Respect Linear dependency ordering", workflow)
+
+    def test_init_can_configure_codex_and_claude_runtimes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "orchestra"
+
+            exit_code = main(
+                [
+                    "--home",
+                    str(home),
+                    "init",
+                    "--linear-project-slug",
+                    "project",
+                    "--target-repo",
+                    "git@github.com:example/repo.git",
+                    "--max-concurrent-agents",
+                    "5",
+                    "--agent-runtime",
+                    "both",
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            config = json.loads((home / "config.json").read_text(encoding="utf-8"))
+            self.assertEqual([runtime["name"] for runtime in config["agent_runtimes"]], ["codex", "claude"])
+            self.assertEqual(config["agent_runtimes"][0]["max_concurrent"], 3)
+            self.assertEqual(config["agent_runtimes"][1]["max_concurrent"], 2)
+            self.assertEqual(config["agent_runtimes"][1]["kind"], "claude_code")
+            self.assertEqual(config["agent_runtimes"][1]["command"], "claude")
+            self.assertNotIn("model", config["agent_runtimes"][1])
+
+            workflow = (home / "WORKFLOW.md").read_text(encoding="utf-8")
+            self.assertIn("name: \"claude\"", workflow)
+            self.assertIn("kind: \"claude_code\"", workflow)
+            self.assertIn("permission_mode: \"bypassPermissions\"", workflow)
+            self.assertNotIn("model:", workflow)
+            self.assertIn("codex:\n  command: \"codex app-server\"", workflow)
+
+    def test_init_only_sets_claude_model_when_configured(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "orchestra"
+
+            exit_code = main(
+                [
+                    "--home",
+                    str(home),
+                    "init",
+                    "--linear-project-slug",
+                    "project",
+                    "--target-repo",
+                    "git@github.com:example/repo.git",
+                    "--agent-runtime",
+                    "claude",
+                    "--claude-model",
+                    "opus",
+                    "--claude-effort",
+                    "high",
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            config = json.loads((home / "config.json").read_text(encoding="utf-8"))
+            self.assertEqual(config["agent_runtimes"][0]["model"], "opus")
+            self.assertEqual(config["agent_runtimes"][0]["effort"], "high")
+            workflow = (home / "WORKFLOW.md").read_text(encoding="utf-8")
+            self.assertIn("model: \"opus\"", workflow)
+            self.assertIn("effort: \"high\"", workflow)
+            self.assertNotIn("codex:\n", workflow)
 
     def test_workflow_always_uses_linear_api_key_env_reference(self):
         text = workflow_text(
