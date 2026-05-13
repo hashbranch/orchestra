@@ -7,9 +7,9 @@ to pull requests.
 
 Orchestra is intended for teams that want repository-local implementation agents
 running on their own machine or workstation, with their own GitHub, Linear, and
-Codex credentials. It was inspired by OpenAI Symphony. The install uses the
-Hashbranch `orchestra-runner` fork by default so runner behavior can evolve with
-Orchestra.
+Codex credentials. It was inspired by OpenAI Symphony. The CLI and runner now
+live together in this repository so installs, releases, and runner behavior move
+as one product.
 
 ## What Orchestra Does
 
@@ -37,9 +37,10 @@ curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/i
 ```
 
 That clones or updates Orchestra under `~/.orchestra/source`, installs the
-Python package, installs the local runner under `~/.orchestra/runner`, installs
-`mise` if no Elixir toolchain is available, and adds Python's user script
-directory to your shell profile when needed.
+Python package, builds the monorepo runner from
+`~/.orchestra/source/runner/elixir`, installs `mise` if no Elixir toolchain is
+available, and adds Python's user script directory to your shell profile when
+needed.
 
 Open a new terminal after install, or run the `export PATH=...` line printed by
 the installer for the current terminal.
@@ -52,7 +53,7 @@ By default the installer tracks the latest `v*` release tag. To pin a version or
 dogfood `main`:
 
 ```bash
-ORCHESTRA_VERSION=v0.3.1 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+ORCHESTRA_VERSION=v0.4.0 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ORCHESTRA_VERSION=main curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ```
 
@@ -135,7 +136,7 @@ By default Orchestra writes to:
 ```text
 ~/.orchestra/
   source/
-  runner/
+  source/runner/
   config.json
   WORKFLOW.md
   workspaces/

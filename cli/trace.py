@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from orchestra_cli.paths import traces_path
+from cli.paths import traces_path
 
 
 ISSUE_RE = re.compile(r"\b[A-Z][A-Z0-9]+-\d+\b")

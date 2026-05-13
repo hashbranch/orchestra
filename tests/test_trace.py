@@ -4,8 +4,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from orchestra_cli.main import main
-from orchestra_cli.trace import infer_issue_identifier, parse_fields, write_trace_event
+from cli.main import main
+from cli.trace import infer_issue_identifier, parse_fields, write_trace_event
 
 
 class TraceTests(unittest.TestCase):
@@ -96,7 +96,7 @@ class TraceTests(unittest.TestCase):
             home = Path(tmp)
             completed_view = mock.Mock(returncode=0, stdout=json.dumps(pr_view), stderr="")
             completed_graphql = mock.Mock(returncode=0, stdout=json.dumps(graphql), stderr="")
-            with mock.patch("orchestra_cli.pr_feedback.subprocess.run", side_effect=[completed_view, completed_graphql]):
+            with mock.patch("cli.pr_feedback.subprocess.run", side_effect=[completed_view, completed_graphql]):
                 exit_code = main(
                     [
                         "--home",

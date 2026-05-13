@@ -63,7 +63,7 @@ PYTHON="$python_bin" scripts/install-orchestra
 scripts_dir="$("$python_bin" -c 'import site; print(site.USER_BASE + "/bin")')"
 
 printf '\nInstalling local runner...\n'
-"$python_bin" -m orchestra_cli.main --home "$home_dir" repair-runner
+"$python_bin" -m cli.main --home "$home_dir" repair-runner
 
 printf '\nInstall complete.\n'
 if command -v orchestra >/dev/null 2>&1; then

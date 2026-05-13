@@ -30,8 +30,8 @@ Orchestra treats unresolved Linear blockers as a dispatch-level guard.
   compliance after dispatch.
 - Generated workflows also instruct Codex not to continue implementation when
   unresolved blockers are discovered during an active run.
-- Until the Hashbranch runner fork applies this behavior natively, Orchestra
-  patches the local runner checkout during install and `run`.
+- Until the local runner applies this behavior natively, Orchestra patches the
+  runner source during install and `run`.
 
 ## Consequences
 
@@ -40,5 +40,5 @@ terminal state. This reduces throughput in the short term but preserves project
 order and prevents invalid PRs.
 
 The local source patch is intentionally tracked as tech debt. Once
-`hashbranch/orchestra-runner` enforces blocker filtering across all active
-states, Orchestra should remove the patch and depend on the runner behavior.
+`runner/elixir` enforces blocker filtering across all active states, Orchestra
+should remove the patch and depend on the runner behavior.

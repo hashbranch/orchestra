@@ -3,8 +3,8 @@ import subprocess
 import unittest
 from unittest import mock
 
-from orchestra_cli.main import main
-from orchestra_cli.pr_feedback import FeedbackOptions, ReviewerOptions, ensure_pr_reviewers, format_feedback, wait_for_pr_feedback
+from cli.main import main
+from cli.pr_feedback import FeedbackOptions, ReviewerOptions, ensure_pr_reviewers, format_feedback, wait_for_pr_feedback
 
 
 def completed(payload):
@@ -99,7 +99,7 @@ class PrFeedbackTests(unittest.TestCase):
             }
         }
 
-        with mock.patch("orchestra_cli.pr_feedback.subprocess.run", side_effect=[completed(pr_view), completed(graphql)]):
+        with mock.patch("cli.pr_feedback.subprocess.run", side_effect=[completed(pr_view), completed(graphql)]):
             snapshot = wait_for_pr_feedback(FeedbackOptions(wait_seconds=0), now=lambda: 10.0)
 
         self.assertEqual(snapshot["repo"], "hashbranch/demo")
@@ -137,7 +137,7 @@ class PrFeedbackTests(unittest.TestCase):
             }
         }
 
-        with mock.patch("orchestra_cli.pr_feedback.subprocess.run", side_effect=[completed(pr_view), completed(graphql)]):
+        with mock.patch("cli.pr_feedback.subprocess.run", side_effect=[completed(pr_view), completed(graphql)]):
             with mock.patch("sys.stdout") as stdout:
                 exit_code = main(["github", "pr-feedback", "wait", "--wait-seconds", "0", "--format", "json"])
 
@@ -173,7 +173,7 @@ class PrFeedbackTests(unittest.TestCase):
             }
         }
 
-        with mock.patch("orchestra_cli.pr_feedback.subprocess.run", side_effect=[completed(pr_view), completed(graphql)]):
+        with mock.patch("cli.pr_feedback.subprocess.run", side_effect=[completed(pr_view), completed(graphql)]):
             with mock.patch("sys.stdout") as stdout:
                 exit_code = main(["pr-feedback", "wait", "--wait-seconds", "0", "--format", "json"])
 
@@ -192,7 +192,7 @@ class PrFeedbackTests(unittest.TestCase):
         }
 
         with mock.patch(
-            "orchestra_cli.pr_feedback.subprocess.run",
+            "cli.pr_feedback.subprocess.run",
             side_effect=[completed(pr_view), subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr=""), completed(pr_view)],
         ) as run:
             result = ensure_pr_reviewers(ReviewerOptions(reviewers=["vector-hb", "nathaniel-hb", "vector-hb"]))
@@ -223,7 +223,7 @@ class PrFeedbackTests(unittest.TestCase):
         }
 
         with mock.patch(
-            "orchestra_cli.pr_feedback.subprocess.run",
+            "cli.pr_feedback.subprocess.run",
             side_effect=[completed(pr_view), subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr=""), completed(pr_view)],
         ):
             with mock.patch("sys.stdout") as stdout:

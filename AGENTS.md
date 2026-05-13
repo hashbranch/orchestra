@@ -9,6 +9,8 @@ not the source of truth.
 - Architecture map: `ARCHITECTURE.md`
 - Documentation index: `docs/index.md`
 - Install guide: `docs/install-orchestra.md`
+- CLI source: `cli/`
+- Runner source: `runner/elixir/`
 - Validation command: `scripts/validate`
 
 ## Working Rules
@@ -20,6 +22,8 @@ not the source of truth.
 - Record durable product, workflow, and architecture decisions in `docs/decisions/`
   when implementation behavior changes. Do not leave decisions only in chat,
   generated prompts, or code comments.
+- Treat Orchestra as a monorepo. Do not add or depend on a separate runner repo
+  for core behavior; see `docs/decisions/0012-runner-lives-in-monorepo.md`.
 - Keep Linear `Dev Complete` as a non-active PR handoff state. Agents must not
   move issues to terminal states such as `Done`; see
   `docs/decisions/0004-dev-complete-is-linear-handoff.md`.

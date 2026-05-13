@@ -18,14 +18,18 @@ Linear project
 ```
 
 This repository owns the installable CLI, generated workflow, deterministic
-helpers, and local patching needed to run the Hashbranch Orchestra runner fork
-safely.
+helpers, and runner source needed to run Orchestra safely.
 
 ## Modules
 
-### `orchestra_cli/`
+### `cli/`
 
 Install, init, run, update, GitHub helper, and trace commands.
+
+### `runner/`
+
+Local runner source. The current runner is the Elixir implementation inherited
+from OpenAI Symphony and adapted for Orchestra.
 
 ### `docs/`
 

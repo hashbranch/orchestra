@@ -10,8 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from orchestra_cli.paths import (
-    DEFAULT_RUNNER_REPO,
+from cli.paths import (
     config_path,
     default_home,
     legacy_runner_path,
@@ -24,7 +23,7 @@ from orchestra_cli.paths import (
     workflow_path,
     workspaces_path,
 )
-from orchestra_cli.pr_feedback import (
+from cli.pr_feedback import (
     FeedbackOptions,
     PrFeedbackError,
     ReviewerOptions,
@@ -33,7 +32,7 @@ from orchestra_cli.pr_feedback import (
     format_reviewer_result,
     wait_for_pr_feedback,
 )
-from orchestra_cli.trace import (
+from cli.trace import (
     TraceError,
     format_trace_event,
     infer_issue_identifier,
@@ -41,8 +40,8 @@ from orchestra_cli.trace import (
     parse_payload_json,
     write_trace_event,
 )
-from orchestra_cli.version import __version__
-from orchestra_cli.workflow import default_after_create, write_workflow
+from cli.version import __version__
+from cli.workflow import default_after_create, write_workflow
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -92,10 +91,10 @@ def main(argv: list[str] | None = None) -> int:
     init_parser.set_defaults(func=cmd_init)
 
     install_parser = subcommands.add_parser("repair-runner", help=argparse.SUPPRESS)
-    install_parser.add_argument("--source", default=DEFAULT_RUNNER_REPO)
-    install_parser.add_argument("--ref", help="Optional git ref to checkout after clone/fetch.")
-    install_parser.add_argument("--force", action="store_true", help="Replace existing runner checkout.")
-    install_parser.add_argument("--skip-build", action="store_true", help="Clone/update the runner without running mix build.")
+    install_parser.add_argument("--source", type=Path, help="Optional runner source directory. Defaults to this monorepo's runner.")
+    install_parser.add_argument("--ref", help=argparse.SUPPRESS)
+    install_parser.add_argument("--force", action="store_true", help=argparse.SUPPRESS)
+    install_parser.add_argument("--skip-build", action="store_true", help="Prepare the runner without running mix build.")
     install_parser.add_argument(
         "--no-install-mise",
         action="store_true",
@@ -103,10 +102,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     install_parser.set_defaults(func=cmd_install_runner)
     install_alias_parser = subcommands.add_parser("install-runner", help=argparse.SUPPRESS)
-    install_alias_parser.add_argument("--source", default=DEFAULT_RUNNER_REPO)
-    install_alias_parser.add_argument("--ref", help="Optional git ref to checkout after clone/fetch.")
-    install_alias_parser.add_argument("--force", action="store_true", help="Replace existing runner checkout.")
-    install_alias_parser.add_argument("--skip-build", action="store_true", help="Clone/update the runner without running mix build.")
+    install_alias_parser.add_argument("--source", type=Path, help="Optional runner source directory. Defaults to this monorepo's runner.")
+    install_alias_parser.add_argument("--ref", help=argparse.SUPPRESS)
+    install_alias_parser.add_argument("--force", action="store_true", help=argparse.SUPPRESS)
+    install_alias_parser.add_argument("--skip-build", action="store_true", help="Prepare the runner without running mix build.")
     install_alias_parser.add_argument(
         "--no-install-mise",
         action="store_true",
@@ -288,7 +287,7 @@ def cmd_init(args: argparse.Namespace) -> int:
             "blocked": args.blocked_state,
             "terminal": parse_csv(args.terminal_states),
         },
-        "runner_repo": DEFAULT_RUNNER_REPO,
+        "runner_source": str(runner_path(home)),
     }
 
     home.mkdir(parents=True, exist_ok=True)
@@ -367,37 +366,8 @@ def default_runtime_capacities(selected: list[str], max_concurrent_agents: int) 
 
 def cmd_install_runner(args: argparse.Namespace) -> int:
     home = args.home.expanduser()
-    checkout = runner_path(home)
-    legacy_checkout = legacy_runner_path(home)
-
-    if checkout.exists() and args.force:
-        shutil.rmtree(checkout)
-
-    if legacy_checkout.exists() and not checkout.exists():
-        legacy_checkout.rename(checkout)
-
-    if checkout.exists():
-        if not (checkout / ".git").is_dir():
-            print(f"Replacing non-git runner directory at {checkout}.")
-            remove_path(checkout)
-            home.mkdir(parents=True, exist_ok=True)
-            run(["git", "clone", args.source, str(checkout)])
-        else:
-            current_origin = git_output(checkout, ["remote", "get-url", "origin"])
-            if current_origin != args.source:
-                print(f"Replacing runner checkout so it tracks {args.source}.")
-                remove_path(checkout)
-                run(["git", "clone", args.source, str(checkout)])
-            else:
-                run(["git", "-C", str(checkout), "fetch", "--all", "--tags"])
-    else:
-        home.mkdir(parents=True, exist_ok=True)
-        run(["git", "clone", args.source, str(checkout)])
-
-    if args.ref:
-        run(["git", "-C", str(checkout), "checkout", args.ref])
-
-    elixir_dir = runner_elixir_path(home)
+    runner_source = resolve_runner_source(home, args.source)
+    elixir_dir = runner_source / "elixir"
     if not elixir_dir.exists():
         print(f"Expected runner Elixir directory at {elixir_dir}", file=sys.stderr)
         return 1
@@ -406,16 +376,27 @@ def cmd_install_runner(args: argparse.Namespace) -> int:
         return 1
 
     if args.skip_build:
-        print(f"Installed runner source at {checkout}; skipped build.")
+        print(f"Prepared runner source at {runner_source}; skipped build.")
         return 0
 
     toolchain = ensure_elixir_toolchain(install_mise=not args.no_install_mise)
     if toolchain is None:
-        print("Installed runner source, but neither mise nor mix is available to build it.", file=sys.stderr)
+        print("Runner source is available, but neither mise nor mix is available to build it.", file=sys.stderr)
         return 1
 
     build_runner(elixir_dir, toolchain)
     return 0
+
+
+def resolve_runner_source(home: Path, override: Path | None = None) -> Path:
+    if override is not None:
+        return override.expanduser()
+
+    runner = runner_path(home)
+    legacy = legacy_runner_path(home)
+    if not runner.exists() and legacy.exists():
+        return legacy
+    return runner
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -431,7 +412,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         check_executable("codex"),
         check_elixir_toolchain(),
         check_env_or_config("LINEAR_API_KEY", config_path(home)),
-        check_path("runner checkout", runner_elixir_path(home), must_exist=True),
+        check_path("runner source", runner_elixir_path(home), must_exist=True),
     ]
 
     for check in checks:
@@ -733,6 +714,14 @@ def apply_update(home: Path, skip_install: bool = False) -> int:
 
     installer = source / "scripts" / "install-orchestra"
     completed = subprocess.run([str(installer)])
+    if completed.returncode != 0:
+        return completed.returncode
+
+    return repair_runner_after_update(home)
+
+
+def repair_runner_after_update(home: Path) -> int:
+    completed = subprocess.run([sys.executable, "-m", "cli.main", "--home", str(home), "repair-runner"])
     return completed.returncode
 
 

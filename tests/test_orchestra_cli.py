@@ -1,22 +1,25 @@
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from orchestra_cli.main import (
+from cli.main import (
     apply_update,
     check_update_status,
     ensure_elixir_toolchain,
     ensure_runner_blocker_patch,
     main,
     redacted_config,
+    repair_runner_after_update,
+    resolve_runner_source,
     run_env,
 )
-from orchestra_cli.paths import DEFAULT_RUNNER_REPO, upstream_elixir_app_dir
-from orchestra_cli.workflow import workflow_text
+from cli.paths import upstream_elixir_app_dir
+from cli.workflow import workflow_text
 
 
 ORCHESTRATOR_WITH_TODO_BLOCKER = """defmodule OrchestraRunner.Orchestrator do
@@ -341,8 +344,8 @@ class OrchestraCliTests(unittest.TestCase):
             (home / "WORKFLOW.md").write_text("---\n---\n", encoding="utf-8")
             (home / "config.json").write_text("{}", encoding="utf-8")
 
-            with mock.patch("orchestra_cli.main.subprocess.call", side_effect=KeyboardInterrupt), mock.patch(
-                "orchestra_cli.main.find_executable", return_value=None
+            with mock.patch("cli.main.subprocess.call", side_effect=KeyboardInterrupt), mock.patch(
+                "cli.main.find_executable", return_value=None
             ):
                 exit_code = main(["--home", str(home), "run"])
 
@@ -425,7 +428,7 @@ class OrchestraCliTests(unittest.TestCase):
             home = Path(tmp) / "orchestra"
 
             with mock.patch(
-                "orchestra_cli.main.check_update_status",
+                "cli.main.check_update_status",
                 return_value={"ok": True, "available": True, "current": "abc1234", "latest": "def5678"},
             ):
                 exit_code = main(["--home", str(home), "update", "--check"])
@@ -487,14 +490,32 @@ class OrchestraCliTests(unittest.TestCase):
     def test_up_can_skip_update_check_and_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp) / "orchestra"
-            with mock.patch("orchestra_cli.main.check_update_status") as check_update, mock.patch(
-                "orchestra_cli.main.cmd_run", return_value=0
+            with mock.patch("cli.main.check_update_status") as check_update, mock.patch(
+                "cli.main.cmd_run", return_value=0
             ) as run_command:
                 exit_code = main(["--home", str(home), "up", "--no-update"])
 
             self.assertEqual(exit_code, 0)
             check_update.assert_not_called()
             run_command.assert_called_once()
+
+    def test_repair_runner_after_update_uses_current_cli_contract(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch("cli.main.subprocess.run") as run_command:
+            home = Path(tmp) / "home"
+            run_command.return_value.returncode = 0
+
+            self.assertEqual(repair_runner_after_update(home), 0)
+
+            run_command.assert_called_once_with(
+                [
+                    sys.executable,
+                    "-m",
+                    "cli.main",
+                    "--home",
+                    str(home),
+                    "repair-runner",
+                ]
+            )
 
     def test_init_noninteractive_requires_project_and_target_repo_flags(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -526,30 +547,30 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertEqual(config["target_repo"], "git@github.com:example/repo.git")
 
     def test_ensure_elixir_toolchain_uses_existing_mise(self):
-        with mock.patch("orchestra_cli.main.find_executable", return_value="/fake/mise"):
+        with mock.patch("cli.main.find_executable", return_value="/fake/mise"):
             self.assertEqual(ensure_elixir_toolchain(), ("mise", "/fake/mise"))
 
     def test_ensure_elixir_toolchain_uses_existing_mix_when_mise_missing(self):
-        with mock.patch("orchestra_cli.main.find_executable", side_effect=[None, "/fake/mix"]):
+        with mock.patch("cli.main.find_executable", side_effect=[None, "/fake/mix"]):
             self.assertEqual(ensure_elixir_toolchain(), ("mix", "/fake/mix"))
 
     def test_ensure_elixir_toolchain_installs_mise_when_missing(self):
-        with mock.patch("orchestra_cli.main.find_executable", side_effect=[None, None, "/fake/mise"]), mock.patch(
-            "orchestra_cli.main.install_mise_binary", return_value=True
+        with mock.patch("cli.main.find_executable", side_effect=[None, None, "/fake/mise"]), mock.patch(
+            "cli.main.install_mise_binary", return_value=True
         ) as install_mise:
             self.assertEqual(ensure_elixir_toolchain(), ("mise", "/fake/mise"))
 
         install_mise.assert_called_once_with()
 
     def test_ensure_elixir_toolchain_can_skip_mise_install(self):
-        with mock.patch("orchestra_cli.main.find_executable", side_effect=[None, None]), mock.patch(
-            "orchestra_cli.main.install_mise_binary"
+        with mock.patch("cli.main.find_executable", side_effect=[None, None]), mock.patch(
+            "cli.main.install_mise_binary"
         ) as install_mise:
             self.assertIsNone(ensure_elixir_toolchain(install_mise=False))
 
         install_mise.assert_not_called()
 
-    def test_install_runner_skip_build_clones_local_source(self):
+    def test_install_runner_skip_build_prepares_local_source(self):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "source"
             home = Path(tmp) / "home"
@@ -559,12 +580,6 @@ class OrchestraCliTests(unittest.TestCase):
             (source / "README.md").write_text("source\n", encoding="utf-8")
             (source / "elixir" / "README.md").write_text("elixir\n", encoding="utf-8")
             orchestrator.write_text(ORCHESTRATOR_WITH_TODO_BLOCKER, encoding="utf-8")
-
-            subprocess.run(["git", "init", "-b", "main"], cwd=source, check=True, capture_output=True)
-            subprocess.run(["git", "config", "user.name", "Test User"], cwd=source, check=True)
-            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=source, check=True)
-            subprocess.run(["git", "add", "."], cwd=source, check=True)
-            subprocess.run(["git", "commit", "-m", "initial"], cwd=source, check=True, capture_output=True)
 
             with mock.patch.dict(os.environ, {"ORCHESTRA_QUIET": "1"}):
                 exit_code = main(
@@ -579,108 +594,26 @@ class OrchestraCliTests(unittest.TestCase):
                 )
 
             self.assertEqual(exit_code, 0)
-            self.assertTrue((home / "runner" / "elixir").is_dir())
-            patched = (home / "runner" / "elixir" / "lib" / upstream_elixir_app_dir() / "orchestrator.ex").read_text(
+            patched = (source / "elixir" / "lib" / upstream_elixir_app_dir() / "orchestrator.ex").read_text(
                 encoding="utf-8"
             )
             self.assertIn("issue_blocked_by_non_terminal?", patched)
             self.assertNotIn("todo_issue_blocked_by_non_terminal?", patched)
 
-    def test_install_runner_replaces_stale_non_git_runner_directory(self):
+    def test_resolve_runner_source_prefers_installed_monorepo_runner(self):
         with tempfile.TemporaryDirectory() as tmp:
-            source = Path(tmp) / "source"
             home = Path(tmp) / "home"
-            stale_runner = home / "runner"
-            stale_runner.mkdir(parents=True)
-            (stale_runner / "stale.txt").write_text("not a checkout\n", encoding="utf-8")
-            (source / "elixir").mkdir(parents=True)
-            orchestrator = source / "elixir" / "lib" / upstream_elixir_app_dir() / "orchestrator.ex"
-            orchestrator.parent.mkdir(parents=True)
-            (source / "README.md").write_text("source\n", encoding="utf-8")
-            (source / "elixir" / "README.md").write_text("elixir\n", encoding="utf-8")
-            orchestrator.write_text(ORCHESTRATOR_WITH_TODO_BLOCKER, encoding="utf-8")
+            installed = home / "source" / "runner"
+            installed.mkdir(parents=True)
 
-            subprocess.run(["git", "init", "-b", "main"], cwd=source, check=True, capture_output=True)
-            subprocess.run(["git", "config", "user.name", "Test User"], cwd=source, check=True)
-            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=source, check=True)
-            subprocess.run(["git", "add", "."], cwd=source, check=True)
-            subprocess.run(["git", "commit", "-m", "initial"], cwd=source, check=True, capture_output=True)
+            self.assertEqual(resolve_runner_source(home), installed)
 
-            with mock.patch.dict(os.environ, {"ORCHESTRA_QUIET": "1"}):
-                exit_code = main(
-                    [
-                        "--home",
-                        str(home),
-                        "repair-runner",
-                        "--source",
-                        str(source),
-                        "--skip-build",
-                    ]
-                )
-
-            self.assertEqual(exit_code, 0)
-            self.assertTrue((home / "runner" / ".git").is_dir())
-            self.assertFalse((home / "runner" / "stale.txt").exists())
-
-    def test_default_runner_repo_is_hashbranch_fork(self):
-        self.assertEqual(DEFAULT_RUNNER_REPO, "https://github.com/hashbranch/orchestra-runner.git")
-
-    def test_install_runner_replaces_checkout_when_source_changes(self):
+    def test_resolve_runner_source_uses_explicit_override(self):
         with tempfile.TemporaryDirectory() as tmp:
-            old_source = Path(tmp) / "old-source"
-            new_source = Path(tmp) / "new-source"
             home = Path(tmp) / "home"
+            override = Path(tmp) / "custom-runner"
 
-            for source, marker in [(old_source, "old"), (new_source, "new")]:
-                (source / "elixir").mkdir(parents=True)
-                orchestrator = source / "elixir" / "lib" / upstream_elixir_app_dir() / "orchestrator.ex"
-                orchestrator.parent.mkdir(parents=True)
-                (source / "README.md").write_text(f"{marker}\n", encoding="utf-8")
-                (source / "elixir" / "README.md").write_text("elixir\n", encoding="utf-8")
-                orchestrator.write_text(ORCHESTRATOR_WITH_TODO_BLOCKER, encoding="utf-8")
-                subprocess.run(["git", "init", "-b", "main"], cwd=source, check=True, capture_output=True)
-                subprocess.run(["git", "config", "user.name", "Test User"], cwd=source, check=True)
-                subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=source, check=True)
-                subprocess.run(["git", "add", "."], cwd=source, check=True)
-                subprocess.run(["git", "commit", "-m", "initial"], cwd=source, check=True, capture_output=True)
-
-            with mock.patch.dict(os.environ, {"ORCHESTRA_QUIET": "1"}):
-                self.assertEqual(
-                    main(
-                        [
-                            "--home",
-                            str(home),
-                            "repair-runner",
-                            "--source",
-                            str(old_source),
-                            "--skip-build",
-                        ]
-                    ),
-                    0,
-                )
-
-                self.assertEqual(
-                    main(
-                        [
-                            "--home",
-                            str(home),
-                            "repair-runner",
-                            "--source",
-                            str(new_source),
-                            "--skip-build",
-                        ]
-                    ),
-                    0,
-                )
-
-            remote = subprocess.run(
-                ["git", "-C", str(home / "runner"), "remote", "get-url", "origin"],
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout.strip()
-            self.assertEqual(remote, str(new_source))
-            self.assertEqual((home / "runner" / "README.md").read_text(encoding="utf-8"), "new\n")
+            self.assertEqual(resolve_runner_source(home, override), override)
 
     def test_runner_blocker_patch_skips_any_state_with_unresolved_blockers(self):
         with tempfile.TemporaryDirectory() as tmp:

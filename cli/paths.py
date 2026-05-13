@@ -4,12 +4,12 @@ import os
 from pathlib import Path
 
 
+def repo_root_path() -> Path:
+    return Path(__file__).resolve().parents[1]
+
+
 def upstream_runner_name() -> str:
     return "sym" + "phony"
-
-
-def upstream_runner_repo() -> str:
-    return "https://github.com/hashbranch/orchestra-runner.git"
 
 
 def upstream_runner_bin() -> str:
@@ -18,9 +18,6 @@ def upstream_runner_bin() -> str:
 
 def upstream_elixir_app_dir() -> str:
     return upstream_runner_name() + "_elixir"
-
-
-DEFAULT_RUNNER_REPO = upstream_runner_repo()
 
 
 def default_home() -> Path:
@@ -51,6 +48,14 @@ def traces_path(home: Path) -> Path:
 
 
 def runner_path(home: Path) -> Path:
+    installed = source_path(home) / "runner"
+    if installed.exists():
+        return installed
+
+    local = repo_root_path() / "runner"
+    if local.exists():
+        return local
+
     return home / "runner"
 
 
