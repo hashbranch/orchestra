@@ -9,7 +9,7 @@ def upstream_runner_name() -> str:
 
 
 def upstream_runner_repo() -> str:
-    return "https://github.com/openai/" + upstream_runner_name() + ".git"
+    return "https://github.com/hashbranch/orchestra-runner.git"
 
 
 def upstream_runner_bin() -> str:

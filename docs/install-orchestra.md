@@ -21,11 +21,11 @@ curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/i
 ```
 
 This clones or updates Orchestra under `~/.orchestra/source`, installs the
-Python package, installs the local runner under `~/.orchestra/runner`, and adds
-Python's user script directory to your shell profile when needed. The directory
-is computed from your active Python install, not hardcoded. Open a new terminal
-after install, or run the `export PATH=...` line printed by the installer for
-the current terminal.
+Python package, installs the Hashbranch runner fork under
+`~/.orchestra/runner`, and adds Python's user script directory to your shell
+profile when needed. The directory is computed from your active Python install,
+not hardcoded. Open a new terminal after install, or run the `export PATH=...`
+line printed by the installer for the current terminal.
 
 To install somewhere other than `~/.orchestra`, set `ORCHESTRA_INSTALL_HOME`.
 `ORCHESTRA_HOME` is a runtime override for testing/running an alternate home and
@@ -35,7 +35,7 @@ By default the installer tracks the latest `v*` release tag. If no release tag
 exists yet, it falls back to `main`. To pin a version or dogfood `main`:
 
 ```bash
-ORCHESTRA_VERSION=v0.3.0 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+ORCHESTRA_VERSION=v0.3.1 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ORCHESTRA_VERSION=main curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ```
 

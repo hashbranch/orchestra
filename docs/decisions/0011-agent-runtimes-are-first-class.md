@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-Orchestra started with a Codex-specific workflow because the upstream runner
+Orchestra started with a Codex-specific workflow because the inherited runner
 launches Codex in app-server mode. We also want to support Claude CLI and future
 agent CLIs without pretending they are Codex commands.
 

@@ -14,8 +14,8 @@ Prototype harness: usable for local Orchestra install and runner workflow work.
 ## Gaps
 
 - No CI runner is configured yet.
-- The upstream runner patch should be validated against the real runner test
-  suite.
+- Runner patches should be validated against the `hashbranch/orchestra-runner`
+  test suite.
 - Non-Codex agent runtimes are not supported yet.
 
 ## Bar For Future Changes

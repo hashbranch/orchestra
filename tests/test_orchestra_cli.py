@@ -15,7 +15,7 @@ from orchestra_cli.main import (
     redacted_config,
     run_env,
 )
-from orchestra_cli.paths import upstream_elixir_app_dir
+from orchestra_cli.paths import DEFAULT_RUNNER_REPO, upstream_elixir_app_dir
 from orchestra_cli.workflow import workflow_text
 
 
@@ -621,6 +621,66 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertTrue((home / "runner" / ".git").is_dir())
             self.assertFalse((home / "runner" / "stale.txt").exists())
+
+    def test_default_runner_repo_is_hashbranch_fork(self):
+        self.assertEqual(DEFAULT_RUNNER_REPO, "https://github.com/hashbranch/orchestra-runner.git")
+
+    def test_install_runner_replaces_checkout_when_source_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old_source = Path(tmp) / "old-source"
+            new_source = Path(tmp) / "new-source"
+            home = Path(tmp) / "home"
+
+            for source, marker in [(old_source, "old"), (new_source, "new")]:
+                (source / "elixir").mkdir(parents=True)
+                orchestrator = source / "elixir" / "lib" / upstream_elixir_app_dir() / "orchestrator.ex"
+                orchestrator.parent.mkdir(parents=True)
+                (source / "README.md").write_text(f"{marker}\n", encoding="utf-8")
+                (source / "elixir" / "README.md").write_text("elixir\n", encoding="utf-8")
+                orchestrator.write_text(ORCHESTRATOR_WITH_TODO_BLOCKER, encoding="utf-8")
+                subprocess.run(["git", "init", "-b", "main"], cwd=source, check=True, capture_output=True)
+                subprocess.run(["git", "config", "user.name", "Test User"], cwd=source, check=True)
+                subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=source, check=True)
+                subprocess.run(["git", "add", "."], cwd=source, check=True)
+                subprocess.run(["git", "commit", "-m", "initial"], cwd=source, check=True, capture_output=True)
+
+            with mock.patch.dict(os.environ, {"ORCHESTRA_QUIET": "1"}):
+                self.assertEqual(
+                    main(
+                        [
+                            "--home",
+                            str(home),
+                            "repair-runner",
+                            "--source",
+                            str(old_source),
+                            "--skip-build",
+                        ]
+                    ),
+                    0,
+                )
+
+                self.assertEqual(
+                    main(
+                        [
+                            "--home",
+                            str(home),
+                            "repair-runner",
+                            "--source",
+                            str(new_source),
+                            "--skip-build",
+                        ]
+                    ),
+                    0,
+                )
+
+            remote = subprocess.run(
+                ["git", "-C", str(home / "runner"), "remote", "get-url", "origin"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            self.assertEqual(remote, str(new_source))
+            self.assertEqual((home / "runner" / "README.md").read_text(encoding="utf-8"), "new\n")
 
     def test_runner_blocker_patch_skips_any_state_with_unresolved_blockers(self):
         with tempfile.TemporaryDirectory() as tmp:

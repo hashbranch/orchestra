@@ -383,7 +383,13 @@ def cmd_install_runner(args: argparse.Namespace) -> int:
             home.mkdir(parents=True, exist_ok=True)
             run(["git", "clone", args.source, str(checkout)])
         else:
-            run(["git", "-C", str(checkout), "fetch", "--all", "--tags"])
+            current_origin = git_output(checkout, ["remote", "get-url", "origin"])
+            if current_origin != args.source:
+                print(f"Replacing runner checkout so it tracks {args.source}.")
+                remove_path(checkout)
+                run(["git", "clone", args.source, str(checkout)])
+            else:
+                run(["git", "-C", str(checkout), "fetch", "--all", "--tags"])
     else:
         home.mkdir(parents=True, exist_ok=True)
         run(["git", "clone", args.source, str(checkout)])

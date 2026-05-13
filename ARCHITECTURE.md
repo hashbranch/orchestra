@@ -4,7 +4,7 @@
 
 This repository has one supported product surface:
 
-- `orchestra`: a CLI that installs and runs local upstream runner instances.
+- `orchestra`: a CLI that installs and runs local Orchestra runner instances.
 
 ## System Boundary
 
@@ -18,7 +18,8 @@ Linear project
 ```
 
 This repository owns the installable CLI, generated workflow, deterministic
-helpers, and local patching needed to run the upstream runner safely.
+helpers, and local patching needed to run the Hashbranch Orchestra runner fork
+safely.
 
 ## Modules
 

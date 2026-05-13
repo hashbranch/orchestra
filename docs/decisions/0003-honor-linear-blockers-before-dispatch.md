@@ -15,10 +15,10 @@ an active state while still having unresolved `blocked by` relationships.
 Running those tickets early can create out-of-order PRs, duplicate work, or
 changes based on incomplete upstream decisions.
 
-The upstream runner already reads Linear blocker relations, but the local behavior
-only skipped blocked issues in the `Todo` state. Orchestra supports configurable
-ready and working states, so blocker handling must apply to every active state,
-not just a hard-coded `Todo`.
+The runner inherited from OpenAI Symphony already reads Linear blocker relations,
+but the local behavior only skipped blocked issues in the `Todo` state.
+Orchestra supports configurable ready and working states, so blocker handling
+must apply to every active state, not just a hard-coded `Todo`.
 
 ## Decision
 
@@ -30,8 +30,8 @@ Orchestra treats unresolved Linear blockers as a dispatch-level guard.
   compliance after dispatch.
 - Generated workflows also instruct Codex not to continue implementation when
   unresolved blockers are discovered during an active run.
-- Until the upstream runner applies this behavior for every active state,
-  Orchestra patches the local runner checkout during install and `run`.
+- Until the Hashbranch runner fork applies this behavior natively, Orchestra
+  patches the local runner checkout during install and `run`.
 
 ## Consequences
 
@@ -39,6 +39,6 @@ Orchestra will leave blocked dependent work idle until its blockers reach a
 terminal state. This reduces throughput in the short term but preserves project
 order and prevents invalid PRs.
 
-The local source patch is intentionally tracked as tech debt. Once the upstream
-runner release enforces blocker filtering across all active states, Orchestra
-should remove the patch and depend on the upstream behavior.
+The local source patch is intentionally tracked as tech debt. Once
+`hashbranch/orchestra-runner` enforces blocker filtering across all active
+states, Orchestra should remove the patch and depend on the runner behavior.

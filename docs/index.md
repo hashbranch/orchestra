@@ -12,6 +12,8 @@ This directory is the agent-readable knowledge base for the repository.
     and repo configurations should run on one machine.
   - `decisions/0011-agent-runtimes-are-first-class.md`: how Codex, Claude, and
     future agent CLIs should be configured and scheduled.
+  - `decisions/0012-default-runner-is-hashbranch-fork.md`: why the default
+    runner source is `hashbranch/orchestra-runner`.
 - `archive/`: unsupported prototype notes that are not part of the public CLI
   or package.
 - `plans/`: local execution plans when work needs durable task state.

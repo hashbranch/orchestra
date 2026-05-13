@@ -7,8 +7,8 @@ to pull requests.
 
 Orchestra is intended for teams that want repository-local implementation agents
 running on their own machine or workstation, with their own GitHub, Linear, and
-Codex credentials. It was inspired by OpenAI Symphony and currently uses that
-upstream runner internally, but the public workflow language in this repo is
+Codex credentials. It was inspired by OpenAI Symphony. The install uses the
+Hashbranch `orchestra-runner` fork by default so runner behavior can evolve with
 Orchestra.
 
 ## What Orchestra Does
@@ -52,7 +52,7 @@ By default the installer tracks the latest `v*` release tag. To pin a version or
 dogfood `main`:
 
 ```bash
-ORCHESTRA_VERSION=v0.3.0 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+ORCHESTRA_VERSION=v0.3.1 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ORCHESTRA_VERSION=main curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ```
 
