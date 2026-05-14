@@ -132,6 +132,8 @@ defmodule SymphonyElixir.Config.Schema do
       field(:max_turns, :integer, default: 20)
       field(:max_retry_backoff_ms, :integer, default: 300_000)
       field(:max_concurrent_agents_by_state, :map, default: %{})
+      field(:runtime_selection, :string, default: "round_robin")
+      embeds_many(:runtimes, Schema.Runtime, on_replace: :delete)
     end
 
     @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
@@ -139,14 +141,74 @@ defmodule SymphonyElixir.Config.Schema do
       schema
       |> cast(
         attrs,
-        [:max_concurrent_agents, :max_turns, :max_retry_backoff_ms, :max_concurrent_agents_by_state],
+        [
+          :max_concurrent_agents,
+          :max_turns,
+          :max_retry_backoff_ms,
+          :max_concurrent_agents_by_state,
+          :runtime_selection
+        ],
         empty_values: []
       )
+      |> cast_embed(:runtimes)
       |> validate_number(:max_concurrent_agents, greater_than: 0)
       |> validate_number(:max_turns, greater_than: 0)
       |> validate_number(:max_retry_backoff_ms, greater_than: 0)
+      |> validate_inclusion(:runtime_selection, ["round_robin"])
       |> update_change(:max_concurrent_agents_by_state, &Schema.normalize_state_limits/1)
       |> Schema.validate_state_limits(:max_concurrent_agents_by_state)
+    end
+  end
+
+  defmodule Runtime do
+    @moduledoc false
+    use Ecto.Schema
+    import Ecto.Changeset
+
+    @primary_key false
+    embedded_schema do
+      field(:name, :string)
+      field(:kind, :string)
+      field(:command, :string)
+      field(:max_concurrent, :integer, default: 1)
+
+      field(:approval_policy, StringOrMap)
+      field(:thread_sandbox, :string)
+      field(:turn_sandbox_policy, :map)
+
+      field(:print, :boolean, default: true)
+      field(:bare, :boolean, default: true)
+      field(:output_format, :string, default: "stream-json")
+      field(:permission_mode, :string)
+      field(:model, :string)
+      field(:effort, :string)
+    end
+
+    @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
+    def changeset(schema, attrs) do
+      schema
+      |> cast(
+        attrs,
+        [
+          :name,
+          :kind,
+          :command,
+          :max_concurrent,
+          :approval_policy,
+          :thread_sandbox,
+          :turn_sandbox_policy,
+          :print,
+          :bare,
+          :output_format,
+          :permission_mode,
+          :model,
+          :effort
+        ],
+        empty_values: []
+      )
+      |> validate_required([:name, :kind])
+      |> validate_inclusion(:kind, ["codex", "claude_code"])
+      |> validate_number(:max_concurrent, greater_than: 0)
     end
   end
 
@@ -306,9 +368,12 @@ defmodule SymphonyElixir.Config.Schema do
   @spec resolve_runtime_turn_sandbox_policy(%__MODULE__{}, Path.t() | nil, keyword()) ::
           {:ok, map()} | {:error, term()}
   def resolve_runtime_turn_sandbox_policy(settings, workspace \\ nil, opts \\ []) do
-    case settings.codex.turn_sandbox_policy do
+    runtime = Keyword.get(opts, :runtime)
+    configured_policy = runtime_value(runtime, :turn_sandbox_policy) || settings.codex.turn_sandbox_policy
+
+    case configured_policy do
       %{} = policy ->
-        {:ok, policy}
+        {:ok, normalize_keys(policy)}
 
       _ ->
         workspace
@@ -383,8 +448,50 @@ defmodule SymphonyElixir.Config.Schema do
         turn_sandbox_policy: normalize_optional_map(settings.codex.turn_sandbox_policy)
     }
 
-    %{settings | tracker: tracker, workspace: workspace, codex: codex}
+    agent = %{
+      settings.agent
+      | runtimes: normalize_runtimes(settings.agent.runtimes, codex, settings.agent.max_concurrent_agents)
+    }
+
+    %{settings | tracker: tracker, workspace: workspace, codex: codex, agent: agent}
   end
+
+  defp normalize_runtimes([], codex, max_concurrent_agents) do
+    [
+      %Runtime{
+        name: "codex",
+        kind: "codex",
+        command: codex.command,
+        max_concurrent: max_concurrent_agents,
+        approval_policy: codex.approval_policy,
+        thread_sandbox: codex.thread_sandbox,
+        turn_sandbox_policy: codex.turn_sandbox_policy
+      }
+    ]
+  end
+
+  defp normalize_runtimes(runtimes, codex, _max_concurrent_agents) when is_list(runtimes) do
+    Enum.map(runtimes, fn runtime ->
+      %{
+        runtime
+        | command: runtime.command || default_runtime_command(runtime.kind, codex),
+          max_concurrent: runtime.max_concurrent || 1,
+          approval_policy: normalize_optional_runtime_map(runtime.approval_policy),
+          turn_sandbox_policy: normalize_optional_map(runtime.turn_sandbox_policy)
+      }
+    end)
+  end
+
+  defp default_runtime_command("codex", codex), do: codex.command
+  defp default_runtime_command("claude_code", _codex), do: "claude"
+  defp default_runtime_command(_kind, _codex), do: nil
+
+  defp normalize_optional_runtime_map(nil), do: nil
+  defp normalize_optional_runtime_map(value) when is_map(value), do: normalize_keys(value)
+  defp normalize_optional_runtime_map(value), do: value
+
+  defp runtime_value(nil, _key), do: nil
+  defp runtime_value(runtime, key) when is_map(runtime), do: Map.get(runtime, key) || Map.get(runtime, to_string(key))
 
   defp normalize_keys(value) when is_map(value) do
     Enum.reduce(value, %{}, fn {key, raw_value}, normalized ->

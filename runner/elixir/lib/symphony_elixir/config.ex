@@ -102,12 +102,14 @@ defmodule SymphonyElixir.Config do
           {:ok, codex_runtime_settings()} | {:error, term()}
   def codex_runtime_settings(workspace \\ nil, opts \\ []) do
     with {:ok, settings} <- settings() do
+      runtime = Keyword.get(opts, :runtime)
+
       with {:ok, turn_sandbox_policy} <-
              Schema.resolve_runtime_turn_sandbox_policy(settings, workspace, opts) do
         {:ok,
          %{
-           approval_policy: settings.codex.approval_policy,
-           thread_sandbox: settings.codex.thread_sandbox,
+           approval_policy: runtime_value(runtime, :approval_policy) || settings.codex.approval_policy,
+           thread_sandbox: runtime_value(runtime, :thread_sandbox) || settings.codex.thread_sandbox,
            turn_sandbox_policy: turn_sandbox_policy
          }}
       end
@@ -151,4 +153,7 @@ defmodule SymphonyElixir.Config do
         "Invalid WORKFLOW.md config: #{inspect(other)}"
     end
   end
+
+  defp runtime_value(nil, _key), do: nil
+  defp runtime_value(runtime, key) when is_map(runtime), do: Map.get(runtime, key) || Map.get(runtime, to_string(key))
 end

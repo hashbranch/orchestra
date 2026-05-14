@@ -1165,6 +1165,66 @@ defmodule SymphonyElixir.WorkspaceAndConfigTest do
     end
   end
 
+  test "config defaults to a codex runtime when agent runtimes are omitted" do
+    write_workflow_file!(Workflow.workflow_file_path(),
+      max_concurrent_agents: 3,
+      codex_command: "custom-codex app-server"
+    )
+
+    settings = Config.settings!()
+
+    assert [
+             %Schema.Runtime{
+               name: "codex",
+               kind: "codex",
+               command: "custom-codex app-server",
+               max_concurrent: 3
+             }
+           ] = settings.agent.runtimes
+  end
+
+  test "config parses explicit codex and claude runtimes" do
+    write_workflow_file!(Workflow.workflow_file_path(),
+      max_concurrent_agents: 4,
+      agent_runtime_selection: "round_robin",
+      agent_runtimes: [
+        %{
+          name: "codex-a",
+          kind: "codex",
+          command: "codex app-server",
+          max_concurrent: 2,
+          approval_policy: "never",
+          thread_sandbox: "danger-full-access",
+          turn_sandbox_policy: %{type: "dangerFullAccess"}
+        },
+        %{
+          name: "claude-a",
+          kind: "claude_code",
+          command: "claude",
+          max_concurrent: 1,
+          print: true,
+          bare: true,
+          output_format: "stream-json",
+          permission_mode: "bypassPermissions"
+        }
+      ]
+    )
+
+    settings = Config.settings!()
+
+    assert settings.agent.runtime_selection == "round_robin"
+    assert Enum.map(settings.agent.runtimes, & &1.name) == ["codex-a", "claude-a"]
+    assert Enum.map(settings.agent.runtimes, & &1.kind) == ["codex", "claude_code"]
+    assert hd(settings.agent.runtimes).turn_sandbox_policy == %{"type" => "dangerFullAccess"}
+
+    assert {:ok, runtime_settings} =
+             Config.codex_runtime_settings(nil, runtime: hd(settings.agent.runtimes))
+
+    assert runtime_settings.approval_policy == "never"
+    assert runtime_settings.thread_sandbox == "danger-full-access"
+    assert runtime_settings.turn_sandbox_policy == %{"type" => "dangerFullAccess"}
+  end
+
   test "path safety returns errors for invalid path segments" do
     invalid_segment = String.duplicate("a", 300)
     path = Path.join(System.tmp_dir!(), invalid_segment)

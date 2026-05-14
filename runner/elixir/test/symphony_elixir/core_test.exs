@@ -750,6 +750,39 @@ defmodule SymphonyElixir.CoreTest do
     assert Orchestrator.select_worker_host_for_test(state, "worker-a") == "worker-a"
   end
 
+  test "select_runtime_for_test round robins across available runtime capacity" do
+    write_workflow_file!(Workflow.workflow_file_path(),
+      agent_runtimes: [
+        %{name: "codex-a", kind: "codex", command: "codex app-server", max_concurrent: 1},
+        %{name: "claude-a", kind: "claude_code", command: "claude", max_concurrent: 1}
+      ]
+    )
+
+    state = %Orchestrator.State{runtime_cursor: 0, running: %{}}
+
+    assert %{name: "codex-a"} = Orchestrator.select_runtime_for_test(state)
+    assert %{name: "claude-a"} = Orchestrator.select_runtime_for_test(%{state | runtime_cursor: 1})
+
+    full_codex_state = %{
+      state
+      | running: %{
+          "issue-1" => %{runtime: %{name: "codex-a", kind: "codex"}}
+        }
+    }
+
+    assert %{name: "claude-a"} = Orchestrator.select_runtime_for_test(full_codex_state)
+
+    all_full_state = %{
+      state
+      | running: %{
+          "issue-1" => %{runtime: %{name: "codex-a", kind: "codex"}},
+          "issue-2" => %{runtime: %{name: "claude-a", kind: "claude_code"}}
+        }
+    }
+
+    assert Orchestrator.select_runtime_for_test(all_full_state) == :no_runtime_capacity
+  end
+
   defp assert_due_in_range(due_at_ms, min_remaining_ms, max_remaining_ms) do
     remaining_ms = due_at_ms - System.monotonic_time(:millisecond)
 
@@ -1071,6 +1104,99 @@ defmodule SymphonyElixir.CoreTest do
       workspace = Path.join(workspace_root, workspace_name)
       assert File.exists?(workspace)
       assert File.exists?(Path.join(workspace, "README.md"))
+    after
+      File.rm_rf(test_root)
+    end
+  end
+
+  test "agent runner executes claude code runtime with prompt mode flags" do
+    test_root =
+      Path.join(
+        System.tmp_dir!(),
+        "symphony-elixir-agent-runner-claude-#{System.unique_integer([:positive])}"
+      )
+
+    previous_trace = System.get_env("SYMP_TEST_CLAUDE_TRACE")
+
+    on_exit(fn ->
+      restore_env("SYMP_TEST_CLAUDE_TRACE", previous_trace)
+    end)
+
+    try do
+      template_repo = Path.join(test_root, "source")
+      workspace_root = Path.join(test_root, "workspaces")
+      claude_binary = Path.join(test_root, "fake-claude")
+      trace_file = Path.join(test_root, "claude.args")
+
+      File.mkdir_p!(template_repo)
+      File.mkdir_p!(workspace_root)
+      File.write!(Path.join(template_repo, "README.md"), "# test")
+      System.cmd("git", ["-C", template_repo, "init", "-b", "main"])
+      System.cmd("git", ["-C", template_repo, "config", "user.name", "Test User"])
+      System.cmd("git", ["-C", template_repo, "config", "user.email", "test@example.com"])
+      System.cmd("git", ["-C", template_repo, "add", "README.md"])
+      System.cmd("git", ["-C", template_repo, "commit", "-m", "initial"])
+
+      File.write!(claude_binary, """
+      #!/bin/sh
+      printf '%s\\n' "$@" > "$SYMP_TEST_CLAUDE_TRACE"
+      printf '%s\\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}'
+      exit 0
+      """)
+
+      File.chmod!(claude_binary, 0o755)
+      System.put_env("SYMP_TEST_CLAUDE_TRACE", trace_file)
+
+      write_workflow_file!(Workflow.workflow_file_path(),
+        workspace_root: workspace_root,
+        hook_after_create: "cp #{Path.join(template_repo, "README.md")} README.md",
+        agent_runtimes: [
+          %{
+            name: "claude-test",
+            kind: "claude_code",
+            command: claude_binary,
+            max_concurrent: 1,
+            print: true,
+            bare: true,
+            output_format: "stream-json",
+            permission_mode: "bypassPermissions",
+            effort: "high"
+          }
+        ]
+      )
+
+      issue = %Issue{
+        id: "issue-claude",
+        identifier: "S-CLAUDE",
+        title: "Smoke test Claude",
+        description: "Run Claude in prompt mode",
+        state: "In Progress",
+        url: "https://example.org/issues/S-CLAUDE",
+        labels: ["backend"]
+      }
+
+      runtime = Config.settings!().agent.runtimes |> List.first()
+
+      assert :ok =
+               AgentRunner.run(issue, self(),
+                 runtime: runtime,
+                 issue_state_fetcher: fn ["issue-claude"] ->
+                   {:ok, [%{issue | state: "Dev Complete"}]}
+                 end
+               )
+
+      assert_receive {:codex_worker_update, "issue-claude", %{event: :session_started}}, 1_000
+      assert_receive {:codex_worker_update, "issue-claude", %{event: :notification}}, 1_000
+      assert_receive {:codex_worker_update, "issue-claude", %{event: :turn_completed}}, 1_000
+
+      args = File.read!(trace_file)
+      assert args =~ "--print\n"
+      assert args =~ "--bare\n"
+      assert args =~ "--output-format\nstream-json\n"
+      assert args =~ "--permission-mode\nbypassPermissions\n"
+      assert args =~ "--effort\nhigh\n"
+      assert args =~ "-p\n"
+      assert args =~ "You are an agent for this repository."
     after
       File.rm_rf(test_root)
     end
