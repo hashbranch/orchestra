@@ -96,7 +96,7 @@ class TraceTests(unittest.TestCase):
             home = Path(tmp)
             completed_view = mock.Mock(returncode=0, stdout=json.dumps(pr_view), stderr="")
             completed_graphql = mock.Mock(returncode=0, stdout=json.dumps(graphql), stderr="")
-            with mock.patch("cli.pr_feedback.subprocess.run", side_effect=[completed_view, completed_graphql]):
+            with mock.patch("cli.helpers.github.pr_feedback.subprocess.run", side_effect=[completed_view, completed_graphql]):
                 exit_code = main(
                     [
                         "--home",

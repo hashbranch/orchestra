@@ -30,6 +30,10 @@ Provider-scoped helper command wiring lives under `cli/helpers/`. The root
 `cli/main.py` should stay focused on top-level command registration and shared
 install/runtime commands.
 
+GitHub helper implementation lives under `cli/helpers/github/`: `commands.py`
+owns parser/handler wiring and provider-specific modules such as
+`pr_feedback.py` own API/query/formatting behavior.
+
 ### `runner/`
 
 Local runner source. The current runner is the Elixir implementation inherited

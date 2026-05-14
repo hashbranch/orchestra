@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from cli.pr_feedback import (
+from cli.helpers.github.pr_feedback import (
     FeedbackOptions,
     PrFeedbackError,
     ReviewerOptions,

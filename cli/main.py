@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from cli.helpers.github import add_deprecated_github_helper_aliases, add_github_helper_parsers
+from cli.helpers.github.commands import add_deprecated_github_helper_aliases, add_github_helper_parsers
 from cli.paths import (
     config_path,
     default_home,
