@@ -9,6 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from cli.helpers.github.commands import add_deprecated_github_helper_aliases, add_github_helper_parsers
 from cli.paths import (
@@ -34,6 +35,8 @@ from cli.trace import (
 )
 from cli.version import __version__
 from cli.workflow import default_after_create, write_workflow_bundle
+
+RUNNER_GUARDRAIL_ACK = "--i-understand-that-this-will-be-running-without-the-usual-guardrails"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -136,6 +139,24 @@ def main(argv: list[str] | None = None) -> int:
     refresh_parser = subcommands.add_parser("refresh-workflow", help="Regenerate orchestra.yaml and WORKFLOW.md from config.")
     refresh_parser.set_defaults(func=cmd_refresh_workflow)
 
+    configure_runtimes_parser = subcommands.add_parser(
+        "configure-runtimes",
+        help="Update agent runtime settings without reinitializing Linear or GitHub config.",
+    )
+    configure_runtimes_parser.add_argument("--agent-runtime", choices=["codex", "claude", "both"], required=True)
+    configure_runtimes_parser.add_argument("--runtime-selection", choices=["round_robin"], default=None)
+    configure_runtimes_parser.add_argument("--codex-command")
+    configure_runtimes_parser.add_argument("--codex-max-concurrent", type=int)
+    configure_runtimes_parser.add_argument("--claude-command")
+    configure_runtimes_parser.add_argument("--claude-max-concurrent", type=int)
+    configure_runtimes_parser.add_argument(
+        "--claude-model",
+        help="Optional Claude model override. Omit to use the signed-in user's default or preserve the current setting.",
+    )
+    configure_runtimes_parser.add_argument("--claude-effort", help="Optional Claude effort override.")
+    configure_runtimes_parser.add_argument("--max-concurrent-agents", type=int)
+    configure_runtimes_parser.set_defaults(func=cmd_configure_runtimes)
+
     add_github_helper_parsers(subcommands)
     add_deprecated_github_helper_aliases(subcommands)
 
@@ -154,6 +175,19 @@ def main(argv: list[str] | None = None) -> int:
     set_key_parser = subcommands.add_parser("set-linear-key", help="Store or update the Linear API key in config.")
     set_key_parser.add_argument("--linear-api-key", help="Linear API key. Omit to prompt securely.")
     set_key_parser.set_defaults(func=cmd_set_linear_key)
+
+    set_project_parser = subcommands.add_parser("set-linear-project", help="Store or update the Linear project in config.")
+    set_project_parser.add_argument("--linear-project-slug", help="Linear project slug or project URL. Omit to prompt.")
+    set_project_parser.set_defaults(func=cmd_set_linear_project)
+
+    set_repo_parser = subcommands.add_parser("set-target-repo", help="Store or update the GitHub target repo in config.")
+    set_repo_parser.add_argument(
+        "--target-repo",
+        "--github-repo",
+        dest="target_repo",
+        help="GitHub repo URL agents should clone and open PRs against. Omit to prompt.",
+    )
+    set_repo_parser.set_defaults(func=cmd_set_target_repo)
 
     args = parser.parse_args(argv)
     return args.func(args)
@@ -178,12 +212,14 @@ def cmd_init(args: argparse.Namespace) -> int:
         "Linear project slug",
         "Use the slug from the Linear project URL.",
     )
+    linear_project_slug = normalize_linear_project_slug(linear_project_slug)
     print_init_step(3, 4, "GitHub target", "Choose the repo agents will clone, edit, push, and open PRs against.")
     target_repo = resolve_required_value(
         args.target_repo,
         "Target GitHub repo URL",
         "This is the repository agents clone, edit, push to, and open PRs against.",
     )
+    target_repo = normalize_target_repo(target_repo)
     print_init_step(4, 4, "Agent capacity", "Set how many Linear issues may run at the same time.")
     max_concurrent_agents = resolve_int_value(
         args.max_concurrent_agents,
@@ -371,7 +407,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     if not ensure_runner_blocker_patch(elixir_dir):
         return 1
 
-    command = [upstream_runner_bin(), str(wf_path)] + args.extra_arg
+    command = [upstream_runner_bin(), str(wf_path)] + runner_extra_args(args.extra_arg)
     mise = find_executable("mise")
     if mise:
         command = [mise, "exec", "--"] + command
@@ -505,6 +541,84 @@ def cmd_set_linear_key(args: argparse.Namespace) -> int:
     config["linear_api_key"] = linear_api_key
     cfg_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"Updated Linear API key in {cfg_path}")
+    return 0
+
+
+def cmd_set_linear_project(args: argparse.Namespace) -> int:
+    home = args.home.expanduser()
+    try:
+        config = load_config(home)
+    except FileNotFoundError:
+        print(f"Config does not exist at {config_path(home)}. Run `orchestra init` first.", file=sys.stderr)
+        return 1
+
+    project = resolve_required_value(
+        args.linear_project_slug,
+        "Linear project slug",
+        "Use the slug from the Linear project URL.",
+    )
+    project = normalize_linear_project_slug(project)
+    if project is None:
+        return 2
+
+    config["linear_project_slug"] = project
+    write_config_and_workflow(home, config)
+    print(f"Updated Linear project to {project}")
+    return 0
+
+
+def cmd_set_target_repo(args: argparse.Namespace) -> int:
+    home = args.home.expanduser()
+    try:
+        config = load_config(home)
+    except FileNotFoundError:
+        print(f"Config does not exist at {config_path(home)}. Run `orchestra init` first.", file=sys.stderr)
+        return 1
+
+    target_repo = resolve_required_value(
+        args.target_repo,
+        "Target GitHub repo URL",
+        "This is the repository agents clone, edit, push to, and open PRs against.",
+    )
+    target_repo = normalize_target_repo(target_repo)
+    if target_repo is None:
+        return 2
+
+    config["target_repo"] = target_repo
+    config["after_create"] = default_after_create(target_repo)
+    write_config_and_workflow(home, config)
+    print(f"Updated GitHub target repo to {target_repo}")
+    return 0
+
+
+def cmd_configure_runtimes(args: argparse.Namespace) -> int:
+    home = args.home.expanduser()
+    try:
+        config = load_config(home)
+    except FileNotFoundError:
+        print(f"Config does not exist at {config_path(home)}. Run `orchestra init` first.", file=sys.stderr)
+        return 1
+
+    runtime_args, max_concurrent_agents = runtime_args_from_existing_config(args, config)
+    runtimes = build_agent_runtimes(runtime_args, max_concurrent_agents)
+    if runtimes is None:
+        return 2
+
+    config["runtime_selection"] = runtime_args.runtime_selection
+    config["agent_runtimes"] = runtimes
+    config["max_concurrent_agents"] = max_concurrent_agents
+    codex_runtime = next((runtime for runtime in runtimes if runtime.get("kind") == "codex"), None)
+    if codex_runtime:
+        config["codex_command"] = codex_runtime["command"]
+        config["codex_approval_policy"] = codex_runtime["approval_policy"]
+        config["codex_thread_sandbox"] = codex_runtime["thread_sandbox"]
+        config["codex_turn_sandbox_policy"] = codex_runtime["turn_sandbox_policy"]
+
+    write_config_and_workflow(home, config)
+    print(
+        "Updated agent runtimes: "
+        + ", ".join(f"{runtime['name']}({runtime['max_concurrent']})" for runtime in config["agent_runtimes"])
+    )
     return 0
 
 
@@ -685,6 +799,46 @@ def redacted_config(config: dict[str, Any]) -> dict[str, Any]:
     if redacted.get("linear_api_key") and redacted["linear_api_key"] != "$LINEAR_API_KEY":
         redacted["linear_api_key"] = "<redacted>"
     return redacted
+
+
+def write_config_and_workflow(home: Path, config: dict[str, Any]) -> None:
+    home.mkdir(parents=True, exist_ok=True)
+    config_path(home).write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_workflow_bundle(workflow_path(home), workflow_config_path(home), config)
+
+
+def runtime_args_from_existing_config(args: argparse.Namespace, config: dict[str, Any]) -> tuple[argparse.Namespace, int]:
+    codex_runtime = find_runtime(config, "codex")
+    claude_runtime = find_runtime(config, "claude_code")
+    selected_count = 2 if args.agent_runtime == "both" else 1
+    max_concurrent_agents = args.max_concurrent_agents or max(int(config.get("max_concurrent_agents", 1)), selected_count)
+
+    return (
+        argparse.Namespace(
+            agent_runtime=args.agent_runtime,
+            runtime_selection=args.runtime_selection or config.get("runtime_selection", "round_robin"),
+            codex_command=args.codex_command
+            or (codex_runtime or {}).get("command")
+            or config.get("codex_command")
+            or "codex app-server",
+            codex_max_concurrent=args.codex_max_concurrent,
+            claude_command=args.claude_command or (claude_runtime or {}).get("command") or "claude",
+            claude_max_concurrent=args.claude_max_concurrent,
+            claude_model=args.claude_model if args.claude_model is not None else (claude_runtime or {}).get("model"),
+            claude_effort=args.claude_effort if args.claude_effort is not None else (claude_runtime or {}).get("effort"),
+        ),
+        max_concurrent_agents,
+    )
+
+
+def find_runtime(config: dict[str, Any], kind: str) -> dict[str, Any] | None:
+    return next((runtime for runtime in config.get("agent_runtimes", []) if runtime.get("kind") == kind), None)
+
+
+def runner_extra_args(extra_args: list[str]) -> list[str]:
+    if RUNNER_GUARDRAIL_ACK in extra_args:
+        return extra_args
+    return [RUNNER_GUARDRAIL_ACK, *extra_args]
 
 
 def run_env(home: Path) -> dict[str, str]:
@@ -881,7 +1035,7 @@ def print_init_summary(home: Path, cfg_path: Path, wf_config_path: Path, wf_path
                 "",
                 "Next:",
                 "  orchestra doctor",
-                "  orchestra run --extra-arg=--i-understand-that-this-will-be-running-without-the-usual-guardrails",
+                "  orchestra up",
             ]
         )
     )
@@ -901,6 +1055,59 @@ def resolve_required_value(value: str | None, label: str, help_text: str) -> str
 
     print(f"{label} is required.", file=sys.stderr)
     return None
+
+
+def normalize_linear_project_slug(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    candidate = value.strip()
+    if not candidate:
+        return None
+
+    parsed = urlparse(candidate)
+    if parsed.scheme and parsed.netloc:
+        path_parts = [part for part in parsed.path.split("/") if part]
+        if "project" not in path_parts:
+            print("Linear project URL must contain /project/<project-slug>.", file=sys.stderr)
+            return None
+        project_index = path_parts.index("project")
+        if project_index + 1 >= len(path_parts):
+            print("Linear project URL is missing the project slug after /project/.", file=sys.stderr)
+            return None
+        candidate = path_parts[project_index + 1]
+
+    if looks_like_placeholder(candidate):
+        print("Linear project slug still looks like a placeholder. Use the actual Linear project slug or project URL.", file=sys.stderr)
+        return None
+
+    return candidate
+
+
+def normalize_target_repo(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    candidate = value.strip()
+    if not candidate:
+        return None
+
+    if looks_like_placeholder(candidate):
+        print("Target GitHub repo still looks like a placeholder. Use the actual repo URL.", file=sys.stderr)
+        return None
+
+    return candidate
+
+
+def looks_like_placeholder(value: str) -> bool:
+    normalized = value.strip().upper()
+    return (
+        "YOUR_" in normalized
+        or normalized.startswith("YOUR-")
+        or normalized.startswith("YOUR/")
+        or "<" in normalized
+        or ">" in normalized
+    )
 
 
 def resolve_int_value(value: int | None, label: str, default: int, help_text: str) -> int | None:

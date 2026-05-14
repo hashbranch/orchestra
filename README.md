@@ -53,7 +53,7 @@ By default the installer tracks the latest `v*` release tag. To pin a version or
 dogfood `main`:
 
 ```bash
-ORCHESTRA_VERSION=v0.4.3 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+ORCHESTRA_VERSION=v0.4.4 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ORCHESTRA_VERSION=main curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ```
 
@@ -97,7 +97,7 @@ By default Orchestra configures Codex. To generate the long-term mixed runtime
 contract for Codex and Claude:
 
 ```bash
-orchestra init \
+orchestra configure-runtimes \
   --agent-runtime both \
   --max-concurrent-agents 6
 ```
@@ -106,6 +106,15 @@ Claude is configured without a model override by default, so the signed-in Claud
 CLI account controls the default model. Add `--claude-model` only when you want
 to pin one explicitly. The runner supports `codex` and `claude_code` runtimes
 with round-robin selection and per-runtime concurrency limits.
+
+To change an existing install without resetting unrelated settings:
+
+```bash
+orchestra set-linear-key
+orchestra set-linear-project --linear-project-slug https://linear.app/<workspace>/project/<project-slug>/issues
+orchestra set-target-repo --target-repo git@github.com:<org>/<repo>.git
+orchestra configure-runtimes --agent-runtime both --max-concurrent-agents 6
+```
 
 ## Run
 
@@ -118,7 +127,8 @@ orchestra up
 
 `orchestra up` checks the installed release channel for an update, offers to
 apply it or skip it, regenerates `orchestra.yaml` and `WORKFLOW.md` from config
-after a successful update, then starts the local runner.
+after a successful update, then starts the local runner. The CLI passes the
+runner's local preview acknowledgement automatically.
 
 Use `orchestra run` only when you want to skip the update check.
 

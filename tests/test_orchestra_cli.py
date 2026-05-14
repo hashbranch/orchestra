@@ -324,6 +324,45 @@ class OrchestraCliTests(unittest.TestCase):
             config = json.loads((home / "config.json").read_text(encoding="utf-8"))
             self.assertEqual(config["max_concurrent_agents"], 4)
 
+    def test_init_rejects_placeholder_project_and_repo_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "orchestra"
+
+            exit_code = main(
+                [
+                    "--home",
+                    str(home),
+                    "init",
+                    "--linear-project-slug",
+                    "YOUR_LINEAR_PROJECT_SLUG",
+                    "--target-repo",
+                    "git@github.com:YOUR_ORG/YOUR_TEST_REPO.git",
+                ]
+            )
+
+            self.assertEqual(exit_code, 2)
+            self.assertFalse((home / "config.json").exists())
+
+    def test_init_extracts_project_slug_from_linear_project_url(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "orchestra"
+
+            exit_code = main(
+                [
+                    "--home",
+                    str(home),
+                    "init",
+                    "--linear-project-slug",
+                    "https://linear.app/hashbranch/project/real-project-slug/issues",
+                    "--target-repo",
+                    "git@github.com:hashbranch/test-repo.git",
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            config = json.loads((home / "config.json").read_text(encoding="utf-8"))
+            self.assertEqual(config["linear_project_slug"], "real-project-slug")
+
     def test_run_env_loads_linear_key_from_config_without_requiring_workflow_secret(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp) / "orchestra"
@@ -354,6 +393,25 @@ class OrchestraCliTests(unittest.TestCase):
                 exit_code = main(["--home", str(home), "run"])
 
             self.assertEqual(exit_code, 130)
+
+    def test_run_passes_runner_guardrail_ack_automatically(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "orchestra"
+            (home / "runner" / "elixir").mkdir(parents=True)
+            orchestrator = home / "runner" / "elixir" / "lib" / upstream_elixir_app_dir() / "orchestrator.ex"
+            orchestrator.parent.mkdir(parents=True)
+            orchestrator.write_text(ORCHESTRATOR_WITH_TODO_BLOCKER, encoding="utf-8")
+            (home / "WORKFLOW.md").write_text("---\n---\n", encoding="utf-8")
+            (home / "config.json").write_text("{}", encoding="utf-8")
+
+            with mock.patch("cli.main.subprocess.call", return_value=0) as runner_call, mock.patch(
+                "cli.main.find_executable", return_value=None
+            ):
+                exit_code = main(["--home", str(home), "run"])
+
+            self.assertEqual(exit_code, 0)
+            command = runner_call.call_args.args[0]
+            self.assertIn("--i-understand-that-this-will-be-running-without-the-usual-guardrails", command)
 
     def test_redacted_config_hides_stored_linear_key(self):
         self.assertEqual(
@@ -389,6 +447,123 @@ class OrchestraCliTests(unittest.TestCase):
             workflow_config = (home / "orchestra.yaml").read_text(encoding="utf-8")
             self.assertIn("api_key: $LINEAR_API_KEY", workflow_config)
             self.assertNotIn("lin_api_rotated", workflow_config)
+
+    def test_set_linear_project_updates_config_and_workflow_without_resetting_other_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "orchestra"
+            self.assertEqual(
+                main(
+                    [
+                        "--home",
+                        str(home),
+                        "init",
+                        "--linear-project-slug",
+                        "old-project",
+                        "--target-repo",
+                        "git@github.com:example/repo.git",
+                    ]
+                ),
+                0,
+            )
+
+            self.assertEqual(
+                main(
+                    [
+                        "--home",
+                        str(home),
+                        "set-linear-project",
+                        "--linear-project-slug",
+                        "https://linear.app/hashbranch/project/new-project/issues",
+                    ]
+                ),
+                0,
+            )
+
+            config = json.loads((home / "config.json").read_text(encoding="utf-8"))
+            self.assertEqual(config["linear_project_slug"], "new-project")
+            self.assertEqual(config["target_repo"], "git@github.com:example/repo.git")
+            workflow_config = (home / "orchestra.yaml").read_text(encoding="utf-8")
+            self.assertIn('project_slug: "new-project"', workflow_config)
+
+    def test_set_target_repo_updates_config_and_clone_hook_without_resetting_project(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "orchestra"
+            self.assertEqual(
+                main(
+                    [
+                        "--home",
+                        str(home),
+                        "init",
+                        "--linear-project-slug",
+                        "project",
+                        "--target-repo",
+                        "git@github.com:example/old.git",
+                    ]
+                ),
+                0,
+            )
+
+            self.assertEqual(
+                main(["--home", str(home), "set-target-repo", "--target-repo", "git@github.com:example/new.git"]),
+                0,
+            )
+
+            config = json.loads((home / "config.json").read_text(encoding="utf-8"))
+            self.assertEqual(config["linear_project_slug"], "project")
+            self.assertEqual(config["target_repo"], "git@github.com:example/new.git")
+            self.assertIn("git@github.com:example/new.git", config["after_create"])
+            workflow_config = (home / "orchestra.yaml").read_text(encoding="utf-8")
+            self.assertIn("git@github.com:example/new.git", workflow_config)
+
+    def test_configure_runtimes_preserves_linear_and_github_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "orchestra"
+            self.assertEqual(
+                main(
+                    [
+                        "--home",
+                        str(home),
+                        "init",
+                        "--linear-project-slug",
+                        "project",
+                        "--target-repo",
+                        "git@github.com:example/repo.git",
+                    ]
+                ),
+                0,
+            )
+
+            self.assertEqual(
+                main(
+                    [
+                        "--home",
+                        str(home),
+                        "configure-runtimes",
+                        "--agent-runtime",
+                        "both",
+                        "--max-concurrent-agents",
+                        "2",
+                    ]
+                ),
+                0,
+            )
+
+            config = json.loads((home / "config.json").read_text(encoding="utf-8"))
+            self.assertEqual(config["linear_project_slug"], "project")
+            self.assertEqual(config["target_repo"], "git@github.com:example/repo.git")
+            self.assertEqual(config["max_concurrent_agents"], 2)
+            self.assertEqual([runtime["name"] for runtime in config["agent_runtimes"]], ["codex", "claude"])
+            workflow_config = (home / "orchestra.yaml").read_text(encoding="utf-8")
+            self.assertIn('project_slug: "project"', workflow_config)
+            self.assertIn('name: "claude"', workflow_config)
+
+    def test_configure_runtimes_requires_existing_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "orchestra"
+
+            exit_code = main(["--home", str(home), "configure-runtimes", "--agent-runtime", "both"])
+
+            self.assertEqual(exit_code, 1)
 
     def test_refresh_workflow_regenerates_from_existing_config(self):
         with tempfile.TemporaryDirectory() as tmp:
