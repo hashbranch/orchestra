@@ -21,6 +21,7 @@ from cli.paths import (
     runner_elixir_path,
     runner_path,
     traces_path,
+    workflow_config_path,
     workflow_path,
     workspaces_path,
 )
@@ -32,7 +33,7 @@ from cli.trace import (
     write_trace_event,
 )
 from cli.version import __version__
-from cli.workflow import default_after_create, write_workflow
+from cli.workflow import default_after_create, write_workflow_bundle
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -42,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
 
     subcommands = parser.add_subparsers(dest="command", required=True)
 
-    init_parser = subcommands.add_parser("init", help="Create local Orchestra config and WORKFLOW.md.")
+    init_parser = subcommands.add_parser("init", help="Create local Orchestra config, orchestra.yaml, and WORKFLOW.md.")
     init_parser.add_argument("--linear-project-slug")
     init_parser.add_argument(
         "--linear-api-key",
@@ -129,10 +130,10 @@ def main(argv: list[str] | None = None) -> int:
     version_parser.set_defaults(func=cmd_version)
 
     show_parser = subcommands.add_parser("show", help="Show generated paths or config.")
-    show_parser.add_argument("what", choices=["paths", "config", "workflow"])
+    show_parser.add_argument("what", choices=["paths", "config", "workflow-config", "workflow"])
     show_parser.set_defaults(func=cmd_show)
 
-    refresh_parser = subcommands.add_parser("refresh-workflow", help="Regenerate WORKFLOW.md from config.")
+    refresh_parser = subcommands.add_parser("refresh-workflow", help="Regenerate orchestra.yaml and WORKFLOW.md from config.")
     refresh_parser.set_defaults(func=cmd_refresh_workflow)
 
     add_github_helper_parsers(subcommands)
@@ -162,6 +163,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     home = args.home.expanduser()
     cfg_path = config_path(home)
     wf_path = workflow_path(home)
+    wf_config_path = workflow_config_path(home)
 
     if cfg_path.exists() and not args.force:
         print(f"Config already exists at {cfg_path}. Use --force to overwrite.", file=sys.stderr)
@@ -176,11 +178,11 @@ def cmd_init(args: argparse.Namespace) -> int:
         "Linear project slug",
         "Use the slug from the Linear project URL.",
     )
-    print_init_step(3, 4, "GitHub target", "Choose the repo Codex agents will clone, edit, push, and open PRs against.")
+    print_init_step(3, 4, "GitHub target", "Choose the repo agents will clone, edit, push, and open PRs against.")
     target_repo = resolve_required_value(
         args.target_repo,
         "Target GitHub repo URL",
-        "This is the repository Codex agents clone, edit, push to, and open PRs against.",
+        "This is the repository agents clone, edit, push to, and open PRs against.",
     )
     print_init_step(4, 4, "Agent capacity", "Set how many Linear issues may run at the same time.")
     max_concurrent_agents = resolve_int_value(
@@ -226,9 +228,9 @@ def cmd_init(args: argparse.Namespace) -> int:
     workspaces_path(home).mkdir(parents=True, exist_ok=True)
     traces_path(home).mkdir(parents=True, exist_ok=True)
     cfg_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    write_workflow(wf_path, config)
+    write_workflow_bundle(wf_path, wf_config_path, config)
 
-    print_init_summary(home, cfg_path, wf_path, config)
+    print_init_summary(home, cfg_path, wf_config_path, wf_path, config)
     return 0
 
 
@@ -336,6 +338,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     checks = [
         check_path("home", home, must_exist=True),
         check_path("config", config_path(home), must_exist=True),
+        check_path("workflow config", workflow_config_path(home), must_exist=True),
         check_path("workflow", workflow_path(home), must_exist=True),
         check_path("workspaces", workspaces_path(home), must_exist=True),
         check_path("traces", traces_path(home), must_exist=True),
@@ -440,6 +443,8 @@ def cmd_show(args: argparse.Namespace) -> int:
         print(json.dumps(paths_payload(home), indent=2, sort_keys=True))
     elif args.what == "config":
         print(json.dumps(redacted_config(load_config(home)), indent=2, sort_keys=True))
+    elif args.what == "workflow-config":
+        print(workflow_config_path(home).read_text(encoding="utf-8"), end="")
     elif args.what == "workflow":
         print(workflow_path(home).read_text(encoding="utf-8"), end="")
     return 0
@@ -449,6 +454,7 @@ def cmd_refresh_workflow(args: argparse.Namespace) -> int:
     home = args.home.expanduser()
     cfg_path = config_path(home)
     wf_path = workflow_path(home)
+    wf_config_path = workflow_config_path(home)
 
     try:
         config = load_config(home)
@@ -456,8 +462,8 @@ def cmd_refresh_workflow(args: argparse.Namespace) -> int:
         print(f"Config does not exist at {cfg_path}. Run `orchestra init` first.", file=sys.stderr)
         return 1
 
-    write_workflow(wf_path, config)
-    print(f"Regenerated workflow at {wf_path}")
+    write_workflow_bundle(wf_path, wf_config_path, config)
+    print(f"Regenerated workflow files at {wf_config_path} and {wf_path}")
     return 0
 
 
@@ -507,6 +513,7 @@ def paths_payload(home: Path) -> dict[str, str]:
         "home": str(home),
         "config": str(config_path(home)),
         "source": str(source_path(home)),
+        "workflow_config": str(workflow_config_path(home)),
         "workflow": str(workflow_path(home)),
         "workspaces": str(workspaces_path(home)),
         "traces": str(traces_path(home)),
@@ -644,8 +651,8 @@ def refresh_workflow_if_configured(home: Path) -> None:
     if not config_path(home).exists():
         return
     try:
-        write_workflow(workflow_path(home), load_config(home))
-        print(f"Regenerated workflow at {workflow_path(home)}")
+        write_workflow_bundle(workflow_path(home), workflow_config_path(home), load_config(home))
+        print(f"Regenerated workflow files at {workflow_config_path(home)} and {workflow_path(home)}")
     except (OSError, json.JSONDecodeError) as error:
         print(f"Warning: could not regenerate workflow after update: {error}", file=sys.stderr)
 
@@ -829,9 +836,9 @@ def print_init_intro() -> None:
                 "",
                 "Orchestra setup",
                 "===============",
-                "This wizard configures a local Orchestra runner for Linear-driven Codex work.",
+                "This wizard configures a local Orchestra runner for Linear-driven agent work.",
                 "",
-                "It will write local config, generate WORKFLOW.md, and create the workspace root.",
+                "It will write local config, generate orchestra.yaml plus prompt-only WORKFLOW.md, and create the workspace root.",
                 "",
             ]
         )
@@ -851,7 +858,7 @@ def print_init_step(step: int, total: int, title: str, detail: str) -> None:
     )
 
 
-def print_init_summary(home: Path, cfg_path: Path, wf_path: Path, config: dict[str, Any]) -> None:
+def print_init_summary(home: Path, cfg_path: Path, wf_config_path: Path, wf_path: Path, config: dict[str, Any]) -> None:
     print(
         "\n".join(
             [
@@ -866,10 +873,11 @@ def print_init_summary(home: Path, cfg_path: Path, wf_path: Path, config: dict[s
                 f"  Runtimes:              {', '.join(runtime['name'] for runtime in config['agent_runtimes'])}",
                 "",
                 "Files",
-                f"  Home:       {home}",
-                f"  Config:     {cfg_path}",
-                f"  Workflow:   {wf_path}",
-                f"  Workspaces: {workspaces_path(home)}",
+                f"  Home:            {home}",
+                f"  Local config:    {cfg_path}",
+                f"  Workflow config: {wf_config_path}",
+                f"  Prompt:          {wf_path}",
+                f"  Workspaces:      {workspaces_path(home)}",
                 "",
                 "Next:",
                 "  orchestra doctor",
@@ -926,7 +934,7 @@ def resolve_linear_api_key(value: str | None) -> str | None:
     if not sys.stdin.isatty():
         return "$LINEAR_API_KEY"
 
-    print("Stored in config.json and injected at runtime; never written to WORKFLOW.md.")
+    print("Stored in config.json and injected at runtime; never written to orchestra.yaml or WORKFLOW.md.")
     print("Press Enter to use $LINEAR_API_KEY from the environment.")
     entered = getpass.getpass("Linear API key: ").strip()
     return entered or "$LINEAR_API_KEY"

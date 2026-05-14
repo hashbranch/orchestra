@@ -31,7 +31,7 @@ CLI from that checkout, and builds/runs the runner from
 The repo is responsible for:
 
 - the installer and update contract
-- `orchestra init`, generated config, and generated `WORKFLOW.md`
+- `orchestra init`, generated `orchestra.yaml`, and generated `WORKFLOW.md`
 - deterministic helper commands agents can call
 - polling Linear
 - dispatching issue workspaces

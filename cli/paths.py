@@ -35,6 +35,10 @@ def workflow_path(home: Path) -> Path:
     return home / "WORKFLOW.md"
 
 
+def workflow_config_path(home: Path) -> Path:
+    return home / "orchestra.yaml"
+
+
 def workspaces_path(home: Path) -> Path:
     return home / "workspaces"
 

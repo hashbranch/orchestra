@@ -1,9 +1,9 @@
 # Orchestra
 
-Orchestra installs and runs a local Linear-driven Codex automation harness. It
+Orchestra installs and runs a local Linear-driven agent automation harness. It
 watches a configured Linear project, picks up eligible issues, creates isolated
-workspaces from a target GitHub repo, runs Codex agents locally, and drives work
-to pull requests.
+workspaces from a target GitHub repo, runs configured coding agents locally, and
+drives work to pull requests.
 
 Orchestra is intended for teams that want repository-local implementation agents
 running on their own machine or workstation, with their own GitHub, Linear, and
@@ -16,11 +16,11 @@ as one product.
 - Installs a local runner and CLI under `~/.orchestra`
 - Initializes a Linear project, Linear API key, target GitHub repo, and agent
   concurrency setting
-- Generates a local `WORKFLOW.md` from config
+- Generates `orchestra.yaml` for runner config and prompt-only `WORKFLOW.md`
 - Starts a local issue runner with `orchestra up`
 - Creates one workspace per active issue under `~/.orchestra/workspaces`
-- Instructs Codex agents to commit, push, open PRs, request reviewers, wait for
-  PR feedback, and move Linear issues to the configured handoff state
+- Instructs configured agents to commit, push, open PRs, request reviewers, wait
+  for PR feedback, and move Linear issues to the configured handoff state
 - Honors Linear blockers before dispatch so dependent tickets do not run out of
   order
 - Provides GitHub helpers for reviewer assignment, PR feedback collection, and
@@ -53,7 +53,7 @@ By default the installer tracks the latest `v*` release tag. To pin a version or
 dogfood `main`:
 
 ```bash
-ORCHESTRA_VERSION=v0.4.2 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+ORCHESTRA_VERSION=v0.4.3 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ORCHESTRA_VERSION=main curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ```
 
@@ -79,9 +79,17 @@ The initializer asks for:
 - max concurrent agents
 
 The Linear API key is stored in `~/.orchestra/config.json` and injected into the
-runner environment at runtime. It is not written into `WORKFLOW.md`.
+runner environment at runtime. It is not written into `orchestra.yaml` or
+`WORKFLOW.md`.
 
-The target repo is the repo Codex clones for each issue workspace and the repo
+Orchestra separates deterministic runner config from agent instructions:
+
+- `~/.orchestra/orchestra.yaml` is structured runner config consumed by the
+  Elixir runner.
+- `~/.orchestra/WORKFLOW.md` is prompt/instruction text handed to the selected
+  agent runtime.
+
+The target repo is the repo each agent clones for its issue workspace and the repo
 where PRs are opened. The intended mapping is one Orchestra configuration per
 Linear project/repo pair.
 
@@ -96,9 +104,8 @@ orchestra init \
 
 Claude is configured without a model override by default, so the signed-in Claude
 CLI account controls the default model. Add `--claude-model` only when you want
-to pin one explicitly. Native execution of non-Codex runtimes requires runner
-support for `agent.runtimes`; current runner compatibility still uses the legacy
-Codex block when Codex is configured.
+to pin one explicitly. The runner supports `codex` and `claude_code` runtimes
+with round-robin selection and per-runtime concurrency limits.
 
 ## Run
 
@@ -110,8 +117,8 @@ orchestra up
 ```
 
 `orchestra up` checks the installed release channel for an update, offers to
-apply it or skip it, regenerates `WORKFLOW.md` from config after a successful
-update, then starts the local runner.
+apply it or skip it, regenerates `orchestra.yaml` and `WORKFLOW.md` from config
+after a successful update, then starts the local runner.
 
 Use `orchestra run` only when you want to skip the update check.
 
@@ -138,6 +145,7 @@ By default Orchestra writes to:
   source/
   source/runner/
   config.json
+  orchestra.yaml
   WORKFLOW.md
   workspaces/
   traces/

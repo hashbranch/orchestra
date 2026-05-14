@@ -11,8 +11,6 @@
 - Preserve the update contract during any Go CLI migration: the one-line
   installer, `~/.orchestra/source`, and `orchestra update` / `orchestra up`
   must remain stable across the handoff.
-- Add native runner support for `agent.runtimes`, including Claude Code
-  invocation and round-robin scheduling across per-runtime concurrency limits.
 
 ## Closed
 
@@ -26,3 +24,7 @@
   public CLI surface into `docs/archive/`.
 - Added first-class generated agent runtime configuration for Codex and Claude.
 - Moved the runner into this monorepo under `runner/elixir`.
+- Added native runner support for `agent.runtimes`, including Claude Code
+  invocation and round-robin scheduling across per-runtime concurrency limits.
+- Split generated workflow files into structured `orchestra.yaml` config and
+  prompt-only `WORKFLOW.md`.

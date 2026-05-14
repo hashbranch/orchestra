@@ -21,7 +21,7 @@ Generated workflows must treat the configured complete state as a non-active PR
 handoff state. Orchestra will include ready and working states in
 `active_states`, but not the complete state.
 
-Generated prompts must explicitly tell Codex agents to:
+Generated prompts must explicitly tell agents to:
 
 - open a GitHub PR before claiming completion
 - move Linear issues to the configured complete state only after the PR exists
@@ -35,4 +35,3 @@ Linear issues in `Dev Complete` are no longer picked up for additional agent
 work by default. If a ticket moves from `Dev Complete` to `Done`, that should be
 treated as either external Linear automation or a prompt violation to diagnose,
 not normal Orchestra behavior.
-

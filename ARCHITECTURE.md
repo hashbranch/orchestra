@@ -12,13 +12,14 @@ This repository has one supported product surface:
 Linear project
   -> Orchestra runner
   -> isolated workspace cloned from target GitHub repo
-  -> Codex app-server
+  -> configured agent runtime
   -> GitHub branch and PR
   -> Linear handoff state
 ```
 
-This repository owns the installable CLI, generated workflow, deterministic
-helpers, and runner source needed to run Orchestra safely.
+This repository owns the installable CLI, generated runner config, prompt
+instructions, deterministic helpers, and runner source needed to run Orchestra
+safely.
 
 ## Modules
 
@@ -52,7 +53,10 @@ validation or setup step becomes important enough to repeat.
 ## Invariants
 
 - diagnostics must go to stderr.
-- generated workflows must not contain stored Linear secrets.
+- generated `orchestra.yaml` / `WORKFLOW.md` files must not contain stored
+  Linear secrets.
+- `orchestra.yaml` is structured runner configuration; `WORKFLOW.md` is
+  prompt/instruction text for agents.
 - `Dev Complete` is the default non-active handoff state.
 - agents must not move Linear issues to terminal states.
 - branch names must use `feature/`, `bugfix/`, or `hotfix/`.
@@ -64,5 +68,8 @@ validation or setup step becomes important enough to repeat.
 - Agent runtime adapters: future work should support non-Codex CLIs through a
   first-class runtime abstraction; see
   `docs/decisions/0011-agent-runtimes-are-first-class.md`.
+- Workflow configuration boundary: runner config belongs in `orchestra.yaml`,
+  while `WORKFLOW.md` remains prompt-only; see
+  `docs/decisions/0013-split-runner-config-from-agent-prompt.md`.
 - Archived prototype work lives under `docs/archive/` and is not part of the
   supported package.

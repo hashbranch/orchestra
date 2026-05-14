@@ -1,14 +1,15 @@
 # Install Orchestra
 
 This is the install path for another machine that should run its own local
-Orchestra instance with its own Linear token and Codex agents.
+Orchestra instance with its own Linear token and configured coding agents.
 
 ## Prerequisites
 
 - Python 3.10+
 - Git
 - GitHub CLI (`gh`), authenticated for PR creation
-- Codex CLI, already authenticated
+- Codex CLI and/or Claude Code CLI, already authenticated for the runtimes you
+  plan to use
 - `mise` for Elixir/Erlang; the Orchestra installer installs it if missing
 - Linear personal API key
 
@@ -35,7 +36,7 @@ By default the installer tracks the latest `v*` release tag. If no release tag
 exists yet, it falls back to `main`. To pin a version or dogfood `main`:
 
 ```bash
-ORCHESTRA_VERSION=v0.4.1 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
+ORCHESTRA_VERSION=v0.4.3 curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ORCHESTRA_VERSION=main curl -fsSL https://raw.githubusercontent.com/hashbranch/orchestra/main/scripts/install | bash
 ```
 
@@ -67,7 +68,7 @@ orchestra init
 
 - Linear API key, stored only in `~/.orchestra/config.json`; Enter uses `$LINEAR_API_KEY`
 - Linear project slug
-- target GitHub repo URL for Codex workspaces and PRs
+- target GitHub repo URL for agent workspaces and PRs
 - max concurrent agents, default `1`
 
 Unattended setup:
@@ -88,6 +89,7 @@ This creates:
 
 ```text
 ~/.orchestra/config.json
+~/.orchestra/orchestra.yaml
 ~/.orchestra/WORKFLOW.md
 ~/.orchestra/source/
 ~/.orchestra/traces/
@@ -105,22 +107,25 @@ orchestra init \
 
 Claude is configured without a model override by default, so the signed-in Claude
 CLI account controls the default model. Add `--claude-model` only when you want
-to pin one explicitly. Native execution of non-Codex runtimes requires runner
-support for `agent.runtimes`; current runner compatibility still uses the legacy
-Codex block when Codex is configured.
+to pin one explicitly. The runner supports `codex` and `claude_code` runtimes
+with round-robin selection and per-runtime concurrency limits.
 
-The generated `WORKFLOW.md` always contains `api_key: $LINEAR_API_KEY`. If you
-entered a key during init, `orchestra run` injects it into Orchestra's environment
-from `config.json`; it is not written into `WORKFLOW.md`.
+The generated `orchestra.yaml` always contains `api_key: $LINEAR_API_KEY`. If
+you entered a key during init, `orchestra run` injects it into Orchestra's
+environment from `config.json`; it is not written into `orchestra.yaml` or
+`WORKFLOW.md`.
+
+`orchestra.yaml` is structured runner config. `WORKFLOW.md` is prompt/instruction
+text handed to the selected agent runtime.
 
 The GitHub repo for PRs is the configured target repo. Orchestra writes a
-`hooks.after_create` step that runs `git clone <target repo> .`, so every Codex
+`hooks.after_create` step that runs `git clone <target repo> .`, so every agent
 workspace has that repo as `origin`. GitHub PR commands use that `origin` remote.
 Generated workflows require branches to use `feature/`, `bugfix/`, or `hotfix/`
 followed by the Linear issue identifier and a short kebab-case summary; branches
 must not include a person's name or username.
 
-Generated workflows also require Codex to assign `vector-hb` and
+Generated workflows also require agents to assign `vector-hb` and
 `nathaniel-hb` as PR reviewers, check Gemini and GitHub PR review feedback,
 address valid comments, reply to comments, and resolve threads before moving the
 Linear issue to the complete state. Agents use deterministic GitHub helpers for
@@ -194,8 +199,9 @@ orchestra up
 ```
 
 `orchestra up` checks whether the installed Orchestra release channel has a
-newer version available, offers to apply it, regenerates `WORKFLOW.md` from
-config after a successful update, then starts the local runner.
+newer version available, offers to apply it, regenerates `orchestra.yaml` and
+`WORKFLOW.md` from config after a successful update, then starts the local
+runner.
 
 Use `orchestra run` when you want to skip the update check.
 
@@ -206,4 +212,4 @@ orchestra update --check
 orchestra update --yes
 ```
 
-The first goal is local Orchestra + local Codex agents.
+The first goal is local Orchestra plus locally authenticated coding agents.

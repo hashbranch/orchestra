@@ -14,6 +14,8 @@ This directory is the agent-readable knowledge base for the repository.
     future agent CLIs should be configured and scheduled.
   - `decisions/0012-runner-lives-in-monorepo.md`: why runner source lives in
     this repository.
+  - `decisions/0013-split-runner-config-from-agent-prompt.md`: why
+    `orchestra.yaml` owns runner config and `WORKFLOW.md` is prompt-only.
 - `archive/`: unsupported prototype notes that are not part of the public CLI
   or package.
 - `plans/`: local execution plans when work needs durable task state.

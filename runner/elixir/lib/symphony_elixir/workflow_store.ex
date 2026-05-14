@@ -1,6 +1,6 @@
 defmodule SymphonyElixir.WorkflowStore do
   @moduledoc """
-  Caches the last known good workflow and reloads it when `WORKFLOW.md` changes.
+  Caches the last known good workflow and reloads it when WORKFLOW.md or orchestra.yaml changes.
   """
 
   use GenServer
@@ -139,12 +139,7 @@ defmodule SymphonyElixir.WorkflowStore do
   end
 
   defp current_stamp(path) when is_binary(path) do
-    with {:ok, stat} <- File.stat(path, time: :posix),
-         {:ok, content} <- File.read(path) do
-      {:ok, {stat.mtime, stat.size, :erlang.phash2(content)}}
-    else
-      {:error, reason} -> {:error, reason}
-    end
+    Workflow.current_stamp(path)
   end
 
   defp log_reload_error(path, reason) do

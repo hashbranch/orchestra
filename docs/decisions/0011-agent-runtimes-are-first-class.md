@@ -64,16 +64,15 @@ agent:
 Orchestra must not set a Claude model by default. If users want a model override,
 they can configure one explicitly.
 
-For current runner compatibility, Orchestra may still emit the legacy `codex:`
-block when a Codex runtime is configured. That block is compatibility plumbing,
-not the long-term runtime model.
+For current Codex app-server compatibility, Orchestra may still emit the legacy
+`codex:` block when a Codex runtime is configured. That block is compatibility
+plumbing for Codex runtime defaults, not the long-term runtime model.
 
 ## Consequences
 
 The generated workflow can represent Codex-only, Claude-only, or mixed runtime
-pools. Native execution of non-Codex runtimes still requires runner support for
-`agent.runtimes`; until then, the runtime config is the contract that runner work
-should implement.
+pools. The Elixir runner dispatches `codex` through the Codex app-server adapter
+and `claude_code` through Claude Code print mode.
 
 Round-robin scheduling must respect both global `agent.max_concurrent_agents`
 and per-runtime `max_concurrent` limits.

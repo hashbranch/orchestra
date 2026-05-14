@@ -16,7 +16,8 @@ Prototype harness: usable for local Orchestra install and runner workflow work.
 - No CI runner is configured yet.
 - Runner changes should be validated against the local `runner/elixir` test
   suite.
-- Non-Codex agent runtimes are not supported yet.
+- Claude Code runtime support is implemented, but real-world mixed Codex/Claude
+  runs should continue to be exercised against live Linear/GitHub projects.
 
 ## Bar For Future Changes
 

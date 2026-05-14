@@ -19,7 +19,7 @@ from cli.main import (
     run_env,
 )
 from cli.paths import upstream_elixir_app_dir
-from cli.workflow import workflow_text
+from cli.workflow import workflow_config_text, workflow_text
 
 
 ORCHESTRATOR_WITH_TODO_BLOCKER = """defmodule OrchestraRunner.Orchestrator do
@@ -82,16 +82,20 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertTrue((home / "workspaces").is_dir())
             self.assertTrue((home / "traces").is_dir())
 
+            workflow_config = (home / "orchestra.yaml").read_text(encoding="utf-8")
+            self.assertIn("project_slug: \"orchestra-test\"", workflow_config)
+            self.assertIn("api_key: $LINEAR_API_KEY", workflow_config)
+            self.assertNotIn("lin_api", workflow_config)
+            self.assertIn("git clone --depth 1", workflow_config)
+            self.assertIn("codex --config", workflow_config)
+            self.assertIn("runtime_selection: \"round_robin\"", workflow_config)
+            self.assertIn("kind: \"codex\"", workflow_config)
+            self.assertIn('thread_sandbox: "danger-full-access"', workflow_config)
+            self.assertIn('type: "dangerFullAccess"', workflow_config)
+
             workflow = (home / "WORKFLOW.md").read_text(encoding="utf-8")
-            self.assertIn("project_slug: \"orchestra-test\"", workflow)
-            self.assertIn("api_key: $LINEAR_API_KEY", workflow)
-            self.assertNotIn("lin_api", workflow)
-            self.assertIn("git clone --depth 1", workflow)
-            self.assertIn("codex --config", workflow)
-            self.assertIn("runtime_selection: \"round_robin\"", workflow)
-            self.assertIn("kind: \"codex\"", workflow)
-            self.assertIn('thread_sandbox: "danger-full-access"', workflow)
-            self.assertIn('type: "dangerFullAccess"', workflow)
+            self.assertNotIn("project_slug:", workflow)
+            self.assertNotIn("api_key:", workflow)
             self.assertIn("Always open a GitHub PR", workflow)
             self.assertIn("Branch names must use exactly one of these prefixes", workflow)
             self.assertIn("feature/{{ issue.identifier }}-add-login-form", workflow)
@@ -143,12 +147,12 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertEqual(config["agent_runtimes"][1]["command"], "claude")
             self.assertNotIn("model", config["agent_runtimes"][1])
 
-            workflow = (home / "WORKFLOW.md").read_text(encoding="utf-8")
-            self.assertIn("name: \"claude\"", workflow)
-            self.assertIn("kind: \"claude_code\"", workflow)
-            self.assertIn("permission_mode: \"bypassPermissions\"", workflow)
-            self.assertNotIn("model:", workflow)
-            self.assertIn("codex:\n  command: \"codex app-server\"", workflow)
+            workflow_config = (home / "orchestra.yaml").read_text(encoding="utf-8")
+            self.assertIn("name: \"claude\"", workflow_config)
+            self.assertIn("kind: \"claude_code\"", workflow_config)
+            self.assertIn("permission_mode: \"bypassPermissions\"", workflow_config)
+            self.assertNotIn("model:", workflow_config)
+            self.assertIn("codex:\n  command: \"codex app-server\"", workflow_config)
 
     def test_init_only_sets_claude_model_when_configured(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -176,13 +180,13 @@ class OrchestraCliTests(unittest.TestCase):
             config = json.loads((home / "config.json").read_text(encoding="utf-8"))
             self.assertEqual(config["agent_runtimes"][0]["model"], "opus")
             self.assertEqual(config["agent_runtimes"][0]["effort"], "high")
-            workflow = (home / "WORKFLOW.md").read_text(encoding="utf-8")
-            self.assertIn("model: \"opus\"", workflow)
-            self.assertIn("effort: \"high\"", workflow)
-            self.assertNotIn("codex:\n", workflow)
+            workflow_config = (home / "orchestra.yaml").read_text(encoding="utf-8")
+            self.assertIn("model: \"opus\"", workflow_config)
+            self.assertIn("effort: \"high\"", workflow_config)
+            self.assertNotIn("codex:\n", workflow_config)
 
     def test_workflow_always_uses_linear_api_key_env_reference(self):
-        text = workflow_text(
+        text = workflow_config_text(
             {
                 "linear_project_slug": "project",
                 "linear_api_key": "lin_api_secret",
@@ -197,35 +201,35 @@ class OrchestraCliTests(unittest.TestCase):
         self.assertIn("workspace:\n  root: \"/tmp/workspaces\"", text)
 
     def test_workflow_uses_configured_linear_states(self):
-        text = workflow_text(
-            {
-                "linear_project_slug": "project",
-                "workspace_root": "/tmp/workspaces",
-                "after_create": "git clone repo .",
-                "codex_command": "codex app-server",
-                "states": {
-                    "ready": "Ready for Dev",
-                    "working": "Building",
-                    "complete": "Ready for QA",
-                    "blocked": "Blocked",
-                    "terminal": ["Done", "Canceled"],
-                },
-            }
-        )
+        config = {
+            "linear_project_slug": "project",
+            "workspace_root": "/tmp/workspaces",
+            "after_create": "git clone repo .",
+            "codex_command": "codex app-server",
+            "states": {
+                "ready": "Ready for Dev",
+                "working": "Building",
+                "complete": "Ready for QA",
+                "blocked": "Blocked",
+                "terminal": ["Done", "Canceled"],
+            },
+        }
+        config_text = workflow_config_text(config)
+        prompt_text = workflow_text(config)
 
         self.assertIn(
             '  active_states:\n    - "Ready for Dev"\n    - "Building"\n    - "Merging"\n    - "Rework"\n',
-            text,
+            config_text,
         )
         self.assertNotIn(
             '  active_states:\n    - "Ready for Dev"\n    - "Building"\n    - "Ready for QA"\n',
-            text,
+            config_text,
         )
-        self.assertIn("move the Linear issue to `Ready for QA`", text)
-        self.assertIn("otherwise leave it in `Building`", text)
-        self.assertIn("do not start or continue implementation on an issue with unresolved `blocked by` relations", text)
-        self.assertIn('    - "Done"', text)
-        self.assertIn('    - "Canceled"', text)
+        self.assertIn("move the Linear issue to `Ready for QA`", prompt_text)
+        self.assertIn("otherwise leave it in `Building`", prompt_text)
+        self.assertIn("do not start or continue implementation on an issue with unresolved `blocked by` relations", prompt_text)
+        self.assertIn('    - "Done"', config_text)
+        self.assertIn('    - "Canceled"', config_text)
 
     def test_init_refuses_to_overwrite_without_force(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -258,9 +262,9 @@ class OrchestraCliTests(unittest.TestCase):
             self.assertEqual(config["target_repo"], "git@github.com:example/prompted.git")
             self.assertEqual(config["linear_api_key"], "lin_api_prompted")
             self.assertEqual(config["max_concurrent_agents"], 1)
-            workflow = (home / "WORKFLOW.md").read_text(encoding="utf-8")
-            self.assertIn("api_key: $LINEAR_API_KEY", workflow)
-            self.assertNotIn("lin_api_prompted", workflow)
+            workflow_config = (home / "orchestra.yaml").read_text(encoding="utf-8")
+            self.assertIn("api_key: $LINEAR_API_KEY", workflow_config)
+            self.assertNotIn("lin_api_prompted", workflow_config)
 
     def test_init_prompts_for_key_project_then_repo(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -382,9 +386,9 @@ class OrchestraCliTests(unittest.TestCase):
 
             config = json.loads((home / "config.json").read_text(encoding="utf-8"))
             self.assertEqual(config["linear_api_key"], "lin_api_rotated")
-            workflow = (home / "WORKFLOW.md").read_text(encoding="utf-8")
-            self.assertIn("api_key: $LINEAR_API_KEY", workflow)
-            self.assertNotIn("lin_api_rotated", workflow)
+            workflow_config = (home / "orchestra.yaml").read_text(encoding="utf-8")
+            self.assertIn("api_key: $LINEAR_API_KEY", workflow_config)
+            self.assertNotIn("lin_api_rotated", workflow_config)
 
     def test_refresh_workflow_regenerates_from_existing_config(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -414,10 +418,11 @@ class OrchestraCliTests(unittest.TestCase):
             exit_code = main(["--home", str(home), "refresh-workflow"])
 
             self.assertEqual(exit_code, 0)
+            workflow_config = (home / "orchestra.yaml").read_text(encoding="utf-8")
+            self.assertIn("project_slug: \"project\"", workflow_config)
+            self.assertIn("api_key: $LINEAR_API_KEY", workflow_config)
+            self.assertNotIn("lin_api_configured", workflow_config)
             workflow = (home / "WORKFLOW.md").read_text(encoding="utf-8")
-            self.assertIn("project_slug: \"project\"", workflow)
-            self.assertIn("api_key: $LINEAR_API_KEY", workflow)
-            self.assertNotIn("lin_api_configured", workflow)
             self.assertIn("Never move the Linear issue to any terminal state", workflow)
 
     def test_version_subcommand_succeeds(self):

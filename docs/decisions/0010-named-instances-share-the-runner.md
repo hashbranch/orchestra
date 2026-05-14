@@ -26,7 +26,8 @@ Each named instance should own:
 
 - Linear project slug
 - target GitHub repo
-- generated `WORKFLOW.md`
+- generated `orchestra.yaml`
+- generated prompt-only `WORKFLOW.md`
 - workspaces
 - traces
 - concurrency limits
@@ -34,7 +35,7 @@ Each named instance should own:
 
 The runner code and CLI package should be shared by all instances. Running
 multiple instances means running multiple runner processes, each pointed at its
-own instance workflow.
+own instance workflow files.
 
 The target command shape should be:
 

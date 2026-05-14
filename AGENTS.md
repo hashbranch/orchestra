@@ -24,6 +24,11 @@ not the source of truth.
   generated prompts, or code comments.
 - Treat Orchestra as a monorepo. Do not add or depend on a separate runner repo
   for core behavior; see `docs/decisions/0012-runner-lives-in-monorepo.md`.
+- Keep runner configuration and agent prompts separate. Structured workflow
+  configuration belongs in `orchestra.yaml`; `WORKFLOW.md` is prompt text for
+  the selected agent runtime. Preserve front-matter parsing only as a
+  compatibility fallback; see
+  `docs/decisions/0013-split-runner-config-from-agent-prompt.md`.
 - Keep Linear `Dev Complete` as a non-active PR handoff state. Agents must not
   move issues to terminal states such as `Done`; see
   `docs/decisions/0004-dev-complete-is-linear-handoff.md`.

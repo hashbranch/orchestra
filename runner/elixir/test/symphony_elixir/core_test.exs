@@ -174,15 +174,32 @@ defmodule SymphonyElixir.CoreTest do
   end
 
   test "workflow load accepts prompt-only files without front matter" do
-    workflow_path = Path.join(Path.dirname(Workflow.workflow_file_path()), "PROMPT_ONLY_WORKFLOW.md")
+    workflow_dir = Path.join(Path.dirname(Workflow.workflow_file_path()), "prompt-only")
+    File.mkdir_p!(workflow_dir)
+    workflow_path = Path.join(workflow_dir, "WORKFLOW.md")
     File.write!(workflow_path, "Prompt only\n")
 
     assert {:ok, %{config: %{}, prompt: "Prompt only", prompt_template: "Prompt only"}} =
              Workflow.load(workflow_path)
   end
 
+  test "workflow load reads structured config from orchestra yaml beside prompt markdown" do
+    workflow_dir = Path.join(Path.dirname(Workflow.workflow_file_path()), "split-workflow")
+    File.mkdir_p!(workflow_dir)
+    workflow_path = Path.join(workflow_dir, "WORKFLOW.md")
+    config_path = Path.join(workflow_dir, "orchestra.yaml")
+
+    File.write!(workflow_path, "Prompt only\n")
+    File.write!(config_path, "tracker:\n  kind: memory\n")
+
+    assert {:ok, %{config: %{"tracker" => %{"kind" => "memory"}}, prompt: "Prompt only"}} =
+             Workflow.load(workflow_path)
+  end
+
   test "workflow load accepts unterminated front matter with an empty prompt" do
-    workflow_path = Path.join(Path.dirname(Workflow.workflow_file_path()), "UNTERMINATED_WORKFLOW.md")
+    workflow_dir = Path.join(Path.dirname(Workflow.workflow_file_path()), "unterminated")
+    File.mkdir_p!(workflow_dir)
+    workflow_path = Path.join(workflow_dir, "WORKFLOW.md")
     File.write!(workflow_path, "---\ntracker:\n  kind: linear\n")
 
     assert {:ok, %{config: %{"tracker" => %{"kind" => "linear"}}, prompt: "", prompt_template: ""}} =
@@ -190,7 +207,9 @@ defmodule SymphonyElixir.CoreTest do
   end
 
   test "workflow load rejects non-map front matter" do
-    workflow_path = Path.join(Path.dirname(Workflow.workflow_file_path()), "INVALID_FRONT_MATTER_WORKFLOW.md")
+    workflow_dir = Path.join(Path.dirname(Workflow.workflow_file_path()), "invalid-frontmatter")
+    File.mkdir_p!(workflow_dir)
+    workflow_path = Path.join(workflow_dir, "WORKFLOW.md")
     File.write!(workflow_path, "---\n- not-a-map\n---\nPrompt body\n")
 
     assert {:error, :workflow_front_matter_not_a_map} = Workflow.load(workflow_path)

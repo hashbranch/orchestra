@@ -4,12 +4,10 @@ from pathlib import Path
 from typing import Any
 
 
-def workflow_text(config: dict[str, Any]) -> str:
+def workflow_config_text(config: dict[str, Any]) -> str:
     states = workflow_states(config)
-    reviewers = config.get("pr_reviewers", ["vector-hb", "nathaniel-hb"])
 
     lines = [
-        "---",
         "tracker:",
         "  kind: linear",
         "  api_key: $LINEAR_API_KEY",
@@ -34,17 +32,32 @@ def workflow_text(config: dict[str, Any]) -> str:
         "  runtimes:",
         *runtime_list(config),
         *legacy_codex_block(config),
-        "---",
-        "",
-        prompt_body(states, reviewers),
     ]
 
     return "\n".join(lines) + "\n"
 
 
+def workflow_text(config: dict[str, Any]) -> str:
+    return prompt_body(workflow_states(config), config.get("pr_reviewers", ["vector-hb", "nathaniel-hb"])) + "\n"
+
+
+def legacy_workflow_text(config: dict[str, Any]) -> str:
+    return "---\n" + workflow_config_text(config) + "---\n\n" + workflow_text(config)
+
+
+def write_workflow_config(path: Path, config: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(workflow_config_text(config), encoding="utf-8")
+
+
 def write_workflow(path: Path, config: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(workflow_text(config), encoding="utf-8")
+
+
+def write_workflow_bundle(workflow_path: Path, workflow_config_path: Path, config: dict[str, Any]) -> None:
+    write_workflow_config(workflow_config_path, config)
+    write_workflow(workflow_path, config)
 
 
 def default_after_create(repo_url: str) -> str:
